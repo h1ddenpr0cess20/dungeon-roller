@@ -78,6 +78,28 @@ export function createGame({ stage, hud, input, audio, storage }) {
     const b = delve.ball;
     stage.target.set(b.x, b.y, b.z);
     hud.map(delve);
+    warmUp();
+  }
+
+  /**
+   * Draws the whole level once, nothing left out for being off screen, so
+   * every shader it needs is compiled now (behind the level's banner) and
+   * not with a stall the first time some monster comes into view.
+   */
+  function warmUp() {
+    const off = [];
+    group.traverse((o) => {
+      if ((o.isMesh || o.isSprite) && o.frustumCulled) {
+        o.frustumCulled = false;
+        off.push(o);
+      }
+    });
+    try {
+      stage.look();
+      stage.render();
+    } finally {
+      for (const o of off) o.frustumCulled = true;
+    }
   }
 
   function enter(next) {
