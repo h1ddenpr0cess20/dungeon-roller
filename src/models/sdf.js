@@ -517,7 +517,7 @@ export class Sculpt {
   }
 
   /** Colour and bone weights at a point on the surface: from the shapes nearest it, and the paint on it. */
-  surface(p, n, bones) {
+  surface(p, n, bones, cell = 0.004) {
     let best = Infinity, mat = 'skin';
     const near = [];
     for (const s of this.near(p)) {
@@ -532,7 +532,8 @@ export class Sculpt {
     for (const [s, d] of near) {
       const t = d - best;
       if (t > 0.08) continue;
-      const k = Math.exp(-t / Math.max(0.004, s.k * 0.35));
+      // Colours blend over at least a grid step, or their edges come out sawn.
+      const k = Math.exp(-t / Math.max(cell * 0.7, s.k * 0.35));
       const col = typeof s.color === 'function' ? s.color(p, n) : s.color;
       c = [c[0] + col[0] * k, c[1] + col[1] * k, c[2] + col[2] * k];
       w += k;
@@ -707,7 +708,7 @@ export function build(sculpt, { cell = 0.012, bones = ['root'], ambient = 0.32, 
       p = [p[0] - g[0] * step, p[1] - g[1] * step, p[2] - g[2] * step];
     }
     const n = sculpt.gradient(p, e);
-    const s = sculpt.surface(p, n, bones);
+    const s = sculpt.surface(p, n, bones, cell);
     const ao = sculpt.occlusion(p, n, scale * 0.35);
     let c = s.color.map((x) => x * mix(ambient, 1, ao));
     if (shade) c = shade(c, p, n, ao);

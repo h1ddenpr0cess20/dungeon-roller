@@ -95,7 +95,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
   const mobs = dungeon.mobs.map((m, i) => {
     const kind = MONSTERS[m.kind];
     if (!kind) throw new Error(`${dungeon.name}: no such monster as ${m.kind}`);
-    const look = createMonsterMesh(GFX, m.kind);
+    const look = createMonsterMesh(GFX, m.kind, { seed: i });
     look.group.rotation.y = m.facing ?? 0;
     group.add(look.group);
     const ground = dungeon.heightAt(m.x, m.z) ?? 0;

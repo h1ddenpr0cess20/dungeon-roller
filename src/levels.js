@@ -137,10 +137,10 @@ function catacombs() {
   const spiked = d.hall(10);
   c.spike(...across(spiked, 3, { period: 2.4 }));
   c.spike(...across(spiked, 7, { period: 2.4, phase: 1.2 }));
-  // The ossuary: an ooze goes round it.
+  // The ossuary: a slime goes round it.
   const ossuary = d.room(9, 9);
   for (const [a, b] of [[2, -2], [2, 2], [6, -2], [6, 2]]) c.pillar(...ossuary.tile(a, b), 0.8);
-  c.mob('ooze', ...ossuary.tile(1, -3), { path: loop(ossuary, 1) });
+  c.mob('slime', ...ossuary.tile(1, -3), { path: loop(ossuary, 1) });
   c.mob('skeleton', ...ossuary.tile(5, 0), { range: 4 });
   c.potion(...ossuary.tile(4, 4));
   d.hall(4);
@@ -162,10 +162,10 @@ function catacombs() {
   gate(c, barred, 4);
   d.turn('+z');
   d.ramp(8, 3);
-  // The charnel hall: two oozes, skeletons, a chest.
+  // The charnel hall: two slimes, skeletons, a chest.
   const charnel = d.room(11, 11);
-  c.mob('ooze', ...charnel.tile(1, -4), { path: loop(charnel, 1, 0, 6) });
-  c.mob('ooze', ...charnel.tile(6, 4), { path: loop(charnel, 1, 5, 11).reverse() });
+  c.mob('slime', ...charnel.tile(1, -4), { path: loop(charnel, 1, 0, 6) });
+  c.mob('slime', ...charnel.tile(6, 4), { path: loop(charnel, 1, 5, 11).reverse() });
   c.mob('skeleton', ...charnel.tile(5, -2), { range: 6 }).mob('skeleton', ...charnel.tile(7, 3), { range: 6 });
   c.chest(...charnel.tile(9, -5), 60);
   d.hall(5);
@@ -189,7 +189,7 @@ function catacombs() {
   c.spike(...across(lower, 8, { period: 2, phase: 1.4 }));
   d.stairs(4, 2);
   const tomb = d.room(9, 9);
-  c.mob('ooze', ...tomb.tile(1, -3), { path: loop(tomb, 1) });
+  c.mob('slime', ...tomb.tile(1, -3), { path: loop(tomb, 1) });
   c.mob('skeleton', ...tomb.tile(4, 2), { range: 5 }).mob('skeleton', ...tomb.tile(6, -2), { range: 5 });
   c.potion(...tomb.tile(7, 4)).gold(...tomb.tile(2, 4), 15);
   d.hall(4);
@@ -364,10 +364,10 @@ function warrens() {
   c.mob('rat', ...b3.tile(2, 0), { range: 3 });
   d.turn('+z', { width: 1 });
   d.hall(3, { width: 1 });
-  // The fungus cavern: oozes in the damp.
+  // The fungus cavern: slimes in the damp.
   const cavern = d.room(11, 11);
   for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...cavern.tile(a, b), 0.6);
-  c.mob('ooze', ...cavern.tile(1, -4), { path: loop(cavern, 1, 0, 6) }).mob('ooze', ...cavern.tile(6, 4), { path: loop(cavern, 1, 5, 11).reverse() });
+  c.mob('slime', ...cavern.tile(1, -4), { path: loop(cavern, 1, 0, 6) }).mob('slime', ...cavern.tile(6, 4), { path: loop(cavern, 1, 5, 11).reverse() });
   c.mob('goblin', ...cavern.tile(5, 0), { range: 5 });
   c.potion(...cavern.tile(9, -5)).chest(...cavern.tile(10, 5), 50);
   d.hall(3);

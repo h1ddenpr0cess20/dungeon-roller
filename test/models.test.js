@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import * as GFX from '../src/vendor/gfx/index.js';
 import { CAST } from '../src/models/cast/index.js';
+import { BUILT, standUp } from '../src/models/looks.js';
 import { bake, createModel } from '../src/models/model.js';
 import { Sculpt, build } from '../src/models/sdf.js';
 import { Skeleton } from '../src/models/rig.js';
@@ -56,6 +57,19 @@ for (const [name, def] of Object.entries(CAST)) {
         model.pose({ clip, t, time: t, seed: 0, speed: 1 });
         for (let i = 0; i < position.length; i++) assert.ok(Number.isFinite(position[i]), `${clip} at ${t}`);
       }
+    }
+  });
+}
+
+for (const name of Object.keys(BUILT)) {
+  test(`${name}: built from its own project, stands on the floor and poses through every clip`, () => {
+    const look = standUp(GFX, name, { detail: 0.5 });
+    for (const clip of ['idle', 'walk', 'attack', 'hit', 'ko']) {
+      for (let t = 0; t <= 1; t += 1 / 30) look.pose({ clip, t, time: t, seed: 0, speed: 1 });
+      look.group.updateMatrixWorld(true);
+      const box = new GFX.Box3().setFromObject(look.group);
+      for (const v of [box.min.x, box.min.y, box.max.y]) assert.ok(Number.isFinite(v), `${clip}: ${v}`);
+      if (clip !== 'attack') assert.ok(box.min.y > -0.15, `${clip}: dips to ${box.min.y}`);
     }
   });
 }

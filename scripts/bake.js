@@ -12,8 +12,8 @@ const [name, detail] = process.argv.slice(2);
 const names = name ? [name] : Object.keys(CAST);
 const details = detail ? [Number(detail)] : [1, 0.5];
 for (const n of names) {
-  const def = CAST[n];
-  if (!def) throw new Error(`no model called ${n}`);
+  // A model not yet in the cast is loaded from its file.
+  const def = CAST[n] ?? (await import(`../src/models/cast/${n}.js`)).default;
   for (const d of details) {
     const t0 = performance.now();
     const m = bake(def, { detail: d });

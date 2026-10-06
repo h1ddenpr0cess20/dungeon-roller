@@ -1,6 +1,6 @@
 import { CAST } from './models/cast/index.js';
 import { isBaked, ready } from './models/library.js';
-import { createModel } from './models/model.js';
+import { BUILT, standUp } from './models/looks.js';
 
 /**
  * What lives down there. Each kind has how it gets about — `walk` (pushed
@@ -19,7 +19,9 @@ export const MONSTERS = Object.freeze({
   skeleton: { name: 'Skeleton', move: 'walk', dc: 10, power: 5, gold: 12, radius: 0.32, speed: 3 },
   goblin: { name: 'Goblin', move: 'walk', dc: 9, power: 4, gold: 10, radius: 0.3, speed: 3.8 },
   orc: { name: 'Orc Brute', move: 'walk', dc: 13, power: 6, gold: 25, radius: 0.4, speed: 2.6 },
-  ooze: { name: 'Ooze', move: 'crawl', dc: 8, power: 4, gold: 8, radius: 0.42, speed: 1.4 },
+  slime: { name: 'Slime', move: 'crawl', dc: 8, power: 4, gold: 8, radius: 0.42, speed: 1.4 },
+  egg: { name: 'The Great Egg', move: 'walk', dc: 16, power: 10, gold: 200, radius: 0.8, speed: 1.2, boss: true },
+  rock: { name: 'Boulder', move: 'walk', dc: 12, power: 5, gold: 16, radius: 0.4, speed: 2.2 },
   bat: { name: 'Cave Bat', move: 'fly', dc: 7, power: 2, gold: 5, radius: 0.28, speed: 2.4 },
   wraith: { name: 'Wraith', move: 'fly', dc: 14, power: 6, gold: 30, radius: 0.34, speed: 1.8 },
   dragon: { name: 'Red Dragon', move: 'walk', dc: 17, power: 12, gold: 250, radius: 0.85, speed: 1.4, boss: true },
@@ -103,9 +105,31 @@ export const BOARD_DETAIL = 0.5;
  * the page loads; until its bake comes in, it isn't there. A kind with no
  * sculpt yet is the old handful of plain shapes.
  */
-export function createMonsterMesh(GFX, kind) {
+export function createMonsterMesh(GFX, kind, { seed = 0 } = {}) {
+  if (BUILT[kind]) return createBuiltMesh(GFX, kind, seed);
   if (CAST[kind]) return createSculptedMesh(GFX, kind);
   return createPlainMesh(GFX, kind);
+}
+
+/** One of the creatures ported from their own projects (the slime...): there from the start. */
+function createBuiltMesh(GFX, kind, seed) {
+  const group = new GFX.Group();
+  group.name = kind;
+  const body = new GFX.Group();
+  group.add(body);
+  const look = standUp(GFX, kind, { detail: BOARD_DETAIL, hue: seed });
+  body.add(look.group);
+  let clip = 'idle', since = 0;
+  return {
+    group,
+    body,
+    look,
+    animate(t, moving, { chasing = false } = {}) {
+      const next = moving ? 'walk' : 'idle';
+      if (next !== clip) { clip = next; since = t; }
+      look.pose({ clip, t: t - since, time: t, speed: chasing ? 1 : 0.6 });
+    },
+  };
 }
 
 function createSculptedMesh(GFX, kind) {
@@ -115,7 +139,7 @@ function createSculptedMesh(GFX, kind) {
   group.add(body);
   let model = null;
   const attach = () => {
-    model = createModel(GFX, CAST[kind], { detail: BOARD_DETAIL });
+    model = standUp(GFX, kind, { detail: BOARD_DETAIL });
     body.add(model.group);
   };
   if (isBaked(kind, BOARD_DETAIL)) attach();
@@ -217,16 +241,6 @@ function createPlainMesh(GFX, kind) {
       head.rotation.y = Math.sin(t * 1.7) * 0.3;
       arm.rotation.x = 0.3 + Math.sin(t * pace) * 0.4 * k;
       weapon.rotation.x = (orc ? 0.9 : 1.3) + Math.sin(t * pace) * 0.4 * k;
-    };
-  } else if (kind === 'ooze') {
-    const goo = material(GFX, 'ooze', '#7dff3c', { emissive: '#2fa000', glow: 0.55, roughness: 0.25 });
-    const blob = new GFX.Mesh(new GFX.SphereGeometry(0.46, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), goo);
-    body.add(blob);
-    eyes(GFX, '#10300a', 0.04, 0.12, [0, 0.2, 0.36], body);
-    animate = (t) => {
-      const w = Math.sin(t * 7);
-      blob.scale.set(1 + w * 0.08, 0.6 - w * 0.08, 1 - w * 0.06);
-      body.position.y = 0.005;
     };
   } else if (kind === 'bat') {
     const hide = material(GFX, 'bat', '#3a2c3e', { roughness: 0.8 });

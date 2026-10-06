@@ -2,12 +2,15 @@
  * A turntable for the models (models.html): one or a row of them on a
  * stone floor under dungeon light, to look at while sculpting. Not part of
  * the game. ?m=rat,orc&clip=walk&yaw=0.6&pitch=0.3&dist=1.4&time=0
- * (time fixed for a still; no time and it plays).
+ * (time fixed for a still; no time and it plays; detail=0.5 for the
+ * board's mesh; ty=0.6 to look at that height). A model not yet in the cast
+ * is loaded from its file.
  */
 
 import * as GFX from '../vendor/gfx/index.js';
 import { createRenderer, paintVault } from '../stage.js';
 import { createModel } from './model.js';
+import { BUILT, standUp } from './looks.js';
 import { CAST } from './cast/index.js';
 
 const params = new URLSearchParams(location.search);
@@ -51,13 +54,29 @@ scene.add(floor);
 scene.background = null;
 
 let models = [];
-const state = { clip: params.get('clip') ?? 'idle', t: 0, yaw: Number(params.get('yaw') ?? 0.6), pitch: Number(params.get('pitch') ?? 0.32), dist: Number(params.get('dist') ?? 1), time: params.has('time') ? Number(params.get('time')) : null, playing: !params.has('time') };
+const state = { look: params.has('ty') ? Number(params.get('ty')) : null, clip: params.get('clip') ?? 'idle', t: 0, yaw: Number(params.get('yaw') ?? 0.6), pitch: Number(params.get('pitch') ?? 0.32), dist: Number(params.get('dist') ?? 1), time: params.has('time') ? Number(params.get('time')) : null, playing: !params.has('time') };
 
-function place(names, cell) {
+/** A definition by name: from the cast, or straight from its file while it is being sculpted. */
+const defs = new Map();
+async function load(name) {
+  if (!defs.has(name)) defs.set(name, CAST[name] ?? (await import(`./cast/${name}.js`)).default);
+  return defs.get(name);
+}
+
+async function place(names, detail = 1) {
+  const list = await Promise.all(names.map((n) => (BUILT[n] ? n : load(n))));
   for (const m of models) scene.remove(m.group);
-  models = names.map((name) => createModel(GFX, CAST[name], { cell }));
+  models = list.map((def, i) => (typeof def === 'string' ? standUp(GFX, def, { detail, hue: i }) : createModel(GFX, def, { detail })));
   let x = 0;
-  const widths = models.map((m) => m.mesh.geometry.boundingSphere.radius / 1.5);
+  const box = new GFX.Box3();
+  const sizeOf = (m) => {
+    m.pose({ clip: 'idle', t: 0, time: 0, seed: 0 });
+    m.group.updateMatrixWorld(true);
+    box.setFromObject(m.group);
+    return box;
+  };
+  const boxes = models.map((m) => sizeOf(m).clone());
+  const widths = boxes.map((b) => Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2);
   const total = widths.reduce((s, w) => s + w * 2.2, 0);
   x = -total / 2;
   models.forEach((m, i) => {
@@ -65,8 +84,8 @@ function place(names, cell) {
     x += widths[i] * 2.2;
     scene.add(m.group);
   });
-  state.radius = Math.max(total / 2, ...widths);
-  state.height = Math.max(...models.map((m) => m.mesh.geometry.boundingSphere.center.y));
+  state.radius = Math.max(total / 2, ...widths, ...boxes.map((b) => (b.max.y - b.min.y) * 0.62));
+  state.height = Math.max(...boxes.map((b) => (b.max.y + b.min.y) / 2));
 }
 
 const bar = document.getElementById('bar');
@@ -82,19 +101,25 @@ function frame(dt) {
   clock += dt;
   state.t += dt;
   const time = state.time ?? clock;
-  models.forEach((m, i) => m.pose({ clip: state.clip, t: state.playing ? state.t % 1.6 : state.t, time, seed: i * 1.7, speed: 1 }));
+  const t = state.playing ? state.t % 1.6 : state.t;
+  models.forEach((m, i) => {
+    // A still is played up to its moment, so anything on springs has settled where it would be.
+    if (!state.playing) for (let x = 0; x < t; x += 1 / 60) m.pose({ clip: state.clip, t: x, time: time - t + x, seed: i * 1.7, speed: 1 });
+    m.pose({ clip: state.clip, t, time, seed: i * 1.7, speed: 1 });
+  });
   const w = host.clientWidth || 1, h = host.clientHeight || 1;
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   const r = state.radius * 3.2 * state.dist;
-  camera.position.set(Math.sin(state.yaw) * Math.cos(state.pitch) * r, state.height + Math.sin(state.pitch) * r, Math.cos(state.yaw) * Math.cos(state.pitch) * r);
-  camera.lookAt(new GFX.Vector3(0, state.height * 0.9, 0));
+  const ty = state.look ?? state.height * 0.9;
+  camera.position.set(Math.sin(state.yaw) * Math.cos(state.pitch) * r, ty + Math.sin(state.pitch) * r, Math.cos(state.yaw) * Math.cos(state.pitch) * r);
+  camera.lookAt(new GFX.Vector3(0, ty, 0));
   camera.updateMatrixWorld();
   renderer.render(scene, camera);
 }
 
-place((params.get('m') ?? 'rat').split(','), params.has('cell') ? Number(params.get('cell')) : undefined);
+await place((params.get('m') ?? 'rat').split(','), params.has('detail') ? Number(params.get('detail')) : 1);
 let last = performance.now();
 function loop(now) {
   frame(Math.min(0.05, (now - last) / 1000));
@@ -107,9 +132,9 @@ globalThis.viewer = {
   state,
   place,
   /** Renders one still: `set` some of the state, then draw. */
-  still(next = {}) {
+  async still(next = {}) {
     Object.assign(state, next, { playing: false });
-    if (next.models) place(next.models, next.cell);
+    if (next.models) await place(next.models, next.detail);
     frame(0);
     return true;
   },
