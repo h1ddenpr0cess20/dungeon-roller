@@ -105,6 +105,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
 
   function beginLevel(index) {
     setLevel(index);
+    shown = 0;
     saved = storage.reached(index);
     if (state === 'title') view.aim.zoom = playZoom;
     enter('ready');

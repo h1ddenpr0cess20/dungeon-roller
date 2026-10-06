@@ -71,10 +71,14 @@ const cone = (GFX, r, length, mat, [x, y, z], [rx, ry, rz] = [0, 0, 0], parent) 
   return m;
 };
 
-/** A flat wing: a triangle fan from the shoulder, as a thin double-sided mesh. */
-function wing(GFX, span, chord, mat) {
-  const p = [0, 0, 0, span, 0.05, -chord * 0.2, span * 0.75, 0, chord * 0.55, span * 0.4, 0, chord * 0.75, 0, 0, chord * 0.4];
-  const idx = [0, 1, 2, 0, 2, 3, 0, 3, 4];
+/**
+ * A flat wing out to `side` (1 or −1): a triangle fan from the shoulder, both
+ * faces of it, so it is lit from above and below and either way round.
+ */
+function wing(GFX, span, chord, mat, side = 1) {
+  const p = [0, 0, 0, span * side, 0.05, -chord * 0.2, span * 0.75 * side, 0, chord * 0.55, span * 0.4 * side, 0, chord * 0.75, 0, 0, chord * 0.4];
+  const fan = side > 0 ? [0, 1, 2, 0, 2, 3, 0, 3, 4] : [0, 2, 1, 0, 3, 2, 0, 4, 3];
+  const idx = [...fan, ...fan.slice().reverse()];
   const position = new Float32Array(idx.flatMap((i) => [p[i * 3], p[i * 3 + 1], p[i * 3 + 2]]));
   const g = new GFX.BufferGeometry();
   g.setAttribute('position', new GFX.BufferAttribute(position, 3));
@@ -181,14 +185,13 @@ export function createMonsterMesh(GFX, kind) {
     };
   } else if (kind === 'bat') {
     const hide = material(GFX, 'bat', '#3a2c3e', { roughness: 0.8 });
-    const membrane = new GFX.MeshStandardMaterial({ name: 'bat-wing', color: new GFX.Color('#4b3550'), roughness: 0.8, side: GFX.DoubleSide });
+    const membrane = new GFX.MeshStandardMaterial({ name: 'bat-wing', color: new GFX.Color('#4b3550'), roughness: 0.8 });
     sphere(GFX, 0.1, hide, [0, 0, 0], [1, 1, 1.2], body);
     sphere(GFX, 0.07, hide, [0, 0.05, 0.1], [1, 1, 1], body);
     for (const side of [-1, 1]) cone(GFX, 0.025, 0.08, hide, [side * 0.04, 0.12, 0.09], [0, 0, 0], body);
     eyes(GFX, '#ff3b2f', 0.016, 0.03, [0, 0.07, 0.16], body);
     const wings = [-1, 1].map((side) => {
-      const w = wing(GFX, 0.42, 0.3, membrane);
-      w.scale.x = side;
+      const w = wing(GFX, 0.42, 0.3, membrane, side);
       w.position.set(side * 0.06, 0, -0.08);
       body.add(w);
       return w;
@@ -200,7 +203,7 @@ export function createMonsterMesh(GFX, kind) {
       body.position.y = Math.sin(t * 16) * 0.04;
     };
   } else if (kind === 'wraith') {
-    const shroud = material(GFX, 'wraith', '#3b4c66', { emissive: '#22406a', glow: 0.5, roughness: 0.8, opacity: 0.82 });
+    const shroud = material(GFX, 'wraith', '#7d93b8', { emissive: '#4a7ab8', glow: 0.9, roughness: 0.8, opacity: 0.72 });
     const robe = new GFX.Mesh(new GFX.ConeGeometry(0.28, 0.75, 16, 1, true), shroud);
     robe.position.y = 0.05;
     robe.material.side = GFX.DoubleSide;
@@ -219,7 +222,7 @@ export function createMonsterMesh(GFX, kind) {
     const scales = material(GFX, 'dragon', '#a8261c', { roughness: 0.45, metalness: 0.2 });
     const belly = material(GFX, 'dragon-belly', '#e0a050', { roughness: 0.6 });
     const horn = material(GFX, 'horn', '#e8dcc0', { roughness: 0.5 });
-    const membrane = new GFX.MeshStandardMaterial({ name: 'dragon-wing', color: new GFX.Color('#7a1c18'), roughness: 0.7, side: GFX.DoubleSide });
+    const membrane = new GFX.MeshStandardMaterial({ name: 'dragon-wing', color: new GFX.Color('#7a1c18'), roughness: 0.7 });
     sphere(GFX, 0.55, scales, [0, 0.62, -0.1], [1, 0.85, 1.35], body);
     sphere(GFX, 0.42, belly, [0, 0.52, 0.12], [0.85, 0.7, 1.1], body);
     for (const [x, z] of [[-0.35, 0.3], [0.35, 0.3], [-0.35, -0.5], [0.35, -0.5]]) rod(GFX, 0.11, 0.4, scales, [x, 0.2, z], [0, 0, 0], body);
@@ -233,8 +236,7 @@ export function createMonsterMesh(GFX, kind) {
     eyes(GFX, '#ffd23a', 0.04, 0.12, [0, 0.07, 0.24], head);
     const tail = cone(GFX, 0.16, 1.1, scales, [0, 0.45, -1.05], [-Math.PI / 2 - 0.2, 0, 0], body);
     const wings = [-1, 1].map((side) => {
-      const w = wing(GFX, 1.25, 0.95, membrane);
-      w.scale.x = side;
+      const w = wing(GFX, 1.25, 0.95, membrane, side);
       w.position.set(side * 0.35, 0.95, -0.3);
       body.add(w);
       return w;
