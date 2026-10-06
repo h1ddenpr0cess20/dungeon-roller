@@ -40,7 +40,9 @@ export function bake(def, { detail = 1 } = {}) {
   const chunks = [];
   let base = 0;
   for (const [name, part] of sculpt.split()) {
-    const m = build(part, { cell: def.cells?.[name] ? def.cells[name] / detail : cell, bones, ambient: def.ambient ?? 0.3, shade: def.shade });
+    // Far off (detail under 1) the fine parts needn't be much finer than the rest: they're a few pixels.
+    const fine = def.cells?.[name] ? Math.max(def.cells[name] / detail, detail < 1 ? cell * 0.35 : 0) : cell;
+    const m = build(part, { cell: fine, bones, ambient: def.ambient ?? 0.3, shade: def.shade });
     chunks.push(m);
     // Each triangle takes the material most of its corners have.
     for (let t = 0; t < m.index.length; t += 3) {
