@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="A rolling dungeon crawler: roll Nat's d20 down long, torchlit dungeons. Run into a monster and the number on top is the roll your party of four fights with.">
+<title>Dungeon Roller</title>
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<div id="view"></div>
+
+<header id="top" hidden>
+  <div id="level"></div>
+  <div class="purse"><span class="label">gold</span><span id="gold">0</span></div>
+  <div class="keyring none"><span class="label">keys</span><span id="keys"></span></div>
+</header>
+
+<canvas id="map" width="180" height="180" hidden aria-label="Map of what has been seen"></canvas>
+<ul id="party" hidden aria-label="The party"></ul>
+<div id="roll" hidden aria-label="The number on top of the die"><span class="n">20</span><span class="label">on top</span></div>
+
+<div id="banner" hidden></div>
+<div id="pause" hidden>PAUSED<small>P to carry on</small></div>
+
+<section id="title" hidden>
+  <h1>DUNGEON<br>ROLLER</h1>
+  <p class="tag">roll into trouble</p>
+  <div class="menu">
+    <button id="start" type="button">DESCEND</button>
+    <div id="levels" aria-label="Start from a depth"></div>
+    <p id="best"></p>
+    <p class="help">
+      <span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> roll</span>
+      <span>hold the mouse or a finger — roll toward it</span>
+      <span>whatever is on top when you hit a monster is your roll</span>
+      <span class="keys"><kbd>Q</kbd><kbd>E</kbd> or right-drag turn · wheel or <kbd>+</kbd><kbd>−</kbd> zoom · <kbd>C</kbd> reset view</span>
+      <span class="touch">two fingers: pinch to zoom, twist to turn</span>
+      <span class="keys"><kbd>P</kbd> pause · <kbd>M</kbd> mute</span>
+    </p>
+  </div>
+</section>
+
+<button id="mute" type="button" aria-pressed="false">sound on</button>
+<pre id="error" hidden></pre>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "dungeon-roller",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A rolling dungeon crawler: roll Nat's d20 down long, torchlit dungeons, and whatever is on top when you hit a monster is the roll your party of four fights with",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite build && vite preview",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
+    "vite": "^8.3.2"
+  }
+}
