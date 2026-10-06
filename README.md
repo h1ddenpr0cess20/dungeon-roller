@@ -69,6 +69,12 @@ Mage at the back the least. The real battle screen replaces `resolveBattle`
 and `createBattleScreen` in `src/battle.js`. The game only needs `damage` and
 `gold` back from it.
 
+A full turn-based system is also built and tested: a port of capitol-quest's,
+with skills, MP, LIMIT, weaknesses that BREAK, items, levels and
+auto-battle. For now it is shelved. [docs/battle-system.md](docs/battle-system.md)
+covers its rules, what is left to do, and how to bring it back from the
+patch kept in `docs/battle-port/`.
+
 ![A fight with an orc: a 5 against DC 13](docs/screenshots/battle.jpg)
 
 ### The party

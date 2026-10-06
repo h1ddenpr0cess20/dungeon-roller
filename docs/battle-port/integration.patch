@@ -1,0 +1,3122 @@
+diff --git a/src/actors.js b/src/actors.js
+index 5c8ce45..94c9a46 100644
+--- a/src/actors.js
++++ b/src/actors.js
+@@ -325,13 +325,17 @@ export function createActors(GFX, dungeon, world, { killY }) {
+       for (const m of mobs) {
+         if (m.dead || m.gone) continue;
+         const kind = m.stats;
++        // Just run from: it won't come after the die, or start a fight, until it has collected itself.
++        const calm = m.calm > 0;
++        if (calm) m.calm -= dt;
++        const prey = calm ? null : die;
+         if (m.ball) {
+           const b = m.ball;
+-          const toDie = die ? Math.hypot(die.x - b.x, die.z - b.z) : Infinity;
+-          const fromHome = die ? Math.hypot(die.x - m.home[0], die.z - m.home[2]) : Infinity;
+-          m.chasing = die !== null && toDie < m.range && fromHome < m.range + 1.5 && Math.abs(die.y - b.y) < 1.6;
++          const toDie = prey ? Math.hypot(prey.x - b.x, prey.z - b.z) : Infinity;
++          const fromHome = prey ? Math.hypot(prey.x - m.home[0], prey.z - m.home[2]) : Infinity;
++          m.chasing = prey !== null && toDie < m.range && fromHome < m.range + 1.5 && Math.abs(prey.y - b.y) < 1.6;
+           let tx = m.home[0], tz = m.home[2];
+-          if (m.chasing) { tx = die.x; tz = die.z; }
++          if (m.chasing) { tx = prey.x; tz = prey.z; }
+           else if (m.path) {
+             const [px, pz] = m.path[m.leg % m.path.length];
+             if (Math.hypot(px - b.x, pz - b.z) < 0.4) m.leg++;
+@@ -356,9 +360,9 @@ export function createActors(GFX, dungeon, world, { killY }) {
+           m.moving = Math.hypot(b.vx, b.vz) > 0.3;
+           m.x = b.x; m.y = b.y - kind.radius; m.z = b.z;
+           if (b.y < killY) m.gone = true;
+-          if (die && !touched) {
+-            const reach = die.r + kind.radius + 0.02;
+-            const ex = die.x - b.x, ey = die.y - b.y, ez = die.z - b.z;
++          if (prey && !touched) {
++            const reach = prey.r + kind.radius + 0.02;
++            const ex = prey.x - b.x, ey = prey.y - b.y, ez = prey.z - b.z;
+             if (ex * ex + ey * ey + ez * ez < reach * reach) touched = m;
+           }
+         } else {
+@@ -370,10 +374,10 @@ export function createActors(GFX, dungeon, world, { killY }) {
+           m.moving = true;
+           if (kind.move === 'fly') m.y = m.flight;
+           else m.y = dungeon.heightAt(x, z) ?? m.y;
+-          if (die && !touched) {
++          if (prey && !touched) {
+             const centre = kind.move === 'fly' ? m.y : m.y + 0.2;
+-            const flat = Math.hypot(die.x - x, die.z - z);
+-            if (flat < die.r + kind.radius * (kind.move === 'fly' ? 1 : 0.8) && Math.abs(die.y - centre) < 0.65) touched = m;
++            const flat = Math.hypot(prey.x - x, prey.z - z);
++            if (flat < prey.r + kind.radius * (kind.move === 'fly' ? 1 : 0.8) && Math.abs(prey.y - centre) < 0.65) touched = m;
+           }
+         }
+       }
+diff --git a/src/audio.js b/src/audio.js
+index 11a246c..a99553b 100644
+--- a/src/audio.js
++++ b/src/audio.js
+@@ -25,6 +25,7 @@ export function createAudio() {
+   let roll = null, noise = null;
+   let muted = false;
+   let tune = null;
++  let fightTune = null;
+ 
+   try { muted = localStorage.getItem('dungeon-roller.muted') === '1'; } catch {}
+ 
+@@ -198,17 +199,53 @@ export function createAudio() {
+       tone({ freq: 700, to: 90, length: 1.2, type: 'triangle', gain: 0.22 });
+     },
+ 
+-    /** The sting as a fight starts, by how the roll went. */
+-    battle(grade) {
++    /** The sting as a fight starts. */
++    encounter() {
+       burst({ length: 0.25, freq: 900, gain: 0.5 });
+       tone({ freq: 110, to: 55, length: 0.35, type: 'sawtooth', gain: 0.2 });
+-      const phrase = {
+-        critical: [72, 76, 79, 84, 88],
+-        success: [69, 72, 76, 81],
+-        struggle: [69, 68, 69, 64],
+-        fumble: [64, 63, 62, 57],
+-      }[grade] ?? [69];
+-      phrase.forEach((n, i) => tone({ at: 0.2 + i * 0.1, freq: NOTE(n), length: i === phrase.length - 1 ? 0.5 : 0.12, type: 'square', gain: 0.1 }));
++      [69, 72, 76, 81].forEach((n, i) => tone({ at: 0.2 + i * 0.08, freq: NOTE(n), length: i === 3 ? 0.4 : 0.1, type: 'square', gain: 0.1 }));
++    },
++
++    /** The battle screen's blips, as capitol-quest's: a tone and a length each. */
++    sfx(name) {
++      if (name === 'hit') {
++        burst({ length: 0.07, freq: 1400, gain: 0.35 });
++        tone({ freq: 130, to: 60, length: 0.1, type: 'square', gain: 0.18 });
++        return;
++      }
++      if (name === 'victory') {
++        [72, 76, 79, 84].forEach((n, i) => tone({ at: i * 0.1, freq: NOTE(n), length: i === 3 ? 0.5 : 0.12, type: 'square', gain: 0.1 }));
++        return;
++      }
++      if (name === 'defeat') {
++        [64, 60, 57, 52].forEach((n, i) => tone({ at: i * 0.25, freq: NOTE(n), length: 0.35, type: 'square', gain: 0.1 }));
++        return;
++      }
++      const [freq, length] = {
++        move: [180, 0.025], confirm: [420, 0.055], cancel: [240, 0.05], magic: [620, 0.1], heal: [760, 0.12], error: [140, 0.09],
++      }[name] ?? [420, 0.055];
++      tone({ freq, length, type: 'triangle', gain: 0.12 });
++    },
++
++    /** capitol-quest's battle loop, under the fight: a quick minor arpeggio over a pulse. */
++    battleMusic(on) {
++      if (!ctx) return;
++      if (!on) { clearInterval(fightTune?.timer); fightTune = null; return; }
++      if (fightTune) return;
++      fightTune = { beat: 0, next: now() + 0.05 };
++      const roots = [45, 45, 41, 43], melody = [0, 7, 12, 10, 7, 3, 7, 12], step = 0.19;
++      const play = () => {
++        while (fightTune && fightTune.next < now() + 0.25) {
++          const b = fightTune.beat, root = roots[Math.floor(b / 16) % 4], t = fightTune.next - now();
++          tone({ at: t, freq: NOTE(root + 12 + melody[b % 8]), length: step * 0.85, type: 'triangle', gain: 0.09, out: music });
++          if (b % 4 === 0) tone({ at: t, freq: NOTE(root), length: step * 3.8, type: 'triangle', gain: 0.14, out: music });
++          if (b % 2 === 0) tone({ at: t, freq: NOTE(30), length: step * 0.23, type: 'square', gain: 0.06, out: music });
++          fightTune.beat++;
++          fightTune.next += step;
++        }
++      };
++      fightTune.timer = setInterval(play, 60);
++      play();
+     },
+ 
+     descend() {
+diff --git a/src/battle.js b/src/battle.js
+deleted file mode 100644
+index d91a9b2..0000000
+--- a/src/battle.js
++++ /dev/null
+@@ -1,111 +0,0 @@
+-import { HEROES } from './party.js';
+-
+-/**
+- * The battle — for now, a stand-in. Roll into a monster and the number on
+- * top of the die is the party's roll; this decides the fight from that one
+- * number, and shows it.
+- *
+- *   20               critical: the party wins untouched, and the gold is doubled
+- *   the DC or better a clean win: half the monster's power at the DC, and a
+- *                    point less for every point over, down to nothing
+- *   under the DC     a hard fight: the party wins, but takes half the
+- *                    monster's power, and more the further under
+- *   1                fumble: the monster gets in twice as hard
+- *
+- * The party always wins here: losing is only ever running out of hit points.
+- * The real battle screen goes in behind `resolveBattle` and `createBattleScreen`;
+- * the game only needs a result with `damage` and `gold` back.
+- */
+-
+-export function resolveBattle({ roll, monster }) {
+-  const { dc, power, gold } = monster;
+-  if (roll >= 20) return { roll, dc, grade: 'critical', damage: 0, gold: gold * 2 };
+-  if (roll <= 1) return { roll, dc, grade: 'fumble', damage: power * 2, gold };
+-  if (roll >= dc) return { roll, dc, grade: 'success', damage: Math.max(0, Math.ceil(power / 2) - (roll - dc)), gold };
+-  return { roll, dc, grade: 'struggle', damage: Math.ceil(power / 2) + Math.ceil((dc - roll) / 3), gold };
+-}
+-
+-export const GRADES = Object.freeze({
+-  critical: { title: 'CRITICAL!', line: 'A natural 20. The party cuts it down without a scratch.' },
+-  success: { title: 'VICTORY', line: 'Over the DC: a clean fight.' },
+-  struggle: { title: 'HARD-WON', line: 'Under the DC: the party wins, but it hurts.' },
+-  fumble: { title: 'FUMBLE!', line: 'A natural 1. It gets in twice before it goes down.' },
+-});
+-
+-/**
+- * The stand-in battle screen: the monster, the roll against its DC, and
+- * what the fight cost each hero. `show` resolves when the player carries on.
+- */
+-export function createBattleScreen(root) {
+-  const el = document.createElement('section');
+-  el.id = 'battle';
+-  el.hidden = true;
+-  el.setAttribute('role', 'dialog');
+-  el.setAttribute('aria-label', 'Battle');
+-  el.innerHTML = `
+-    <div class="card">
+-      <p class="mock">battle screen — mock</p>
+-      <h2 class="foe"></h2>
+-      <div class="clash">
+-        <div class="roll"><span class="d20"></span><span class="label">your roll</span></div>
+-        <div class="vs">vs</div>
+-        <div class="dc"><span class="value"></span><span class="label">DC</span></div>
+-      </div>
+-      <p class="grade"></p>
+-      <p class="line"></p>
+-      <ul class="heroes"></ul>
+-      <p class="loot"></p>
+-      <button type="button" class="go">CONTINUE</button>
+-    </div>`;
+-  root.appendChild(el);
+-  const $ = (s) => el.querySelector(s);
+-  let done = null;
+-
+-  const finish = () => {
+-    if (!done) return;
+-    el.hidden = true;
+-    const d = done;
+-    done = null;
+-    d();
+-  };
+-  $('.go').addEventListener('click', (e) => { e.stopPropagation(); finish(); });
+-  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+-
+-  return {
+-    get open() { return done !== null; },
+-
+-    /** `before` and `after` are each hero's hit points either side of the fight. */
+-    show({ monster, result, before, after }) {
+-      const grade = GRADES[result.grade];
+-      $('.foe').textContent = monster.name + (monster.boss ? ' — the boss' : '');
+-      $('.d20').textContent = String(result.roll);
+-      $('.d20').dataset.grade = result.grade;
+-      $('.dc .value').textContent = String(result.dc);
+-      $('.grade').textContent = grade.title;
+-      $('.grade').dataset.grade = result.grade;
+-      $('.line').textContent = grade.line;
+-      $('.heroes').replaceChildren(...HEROES.map((h, i) => {
+-        const li = document.createElement('li');
+-        const lost = before[i] - after[i];
+-        li.innerHTML = `<b style="color:${h.colour}">${h.name}</b>`
+-          + `<span class="bar"><i style="width:${(100 * Math.max(0, after[i])) / h.hp}%"></i></span>`
+-          + `<span class="hp">${Math.max(0, after[i])}/${h.hp}</span>`
+-          + `<span class="lost">${lost > 0 ? `−${lost}` : ''}${after[i] <= 0 && before[i] > 0 ? ' DOWN' : ''}</span>`;
+-        if (after[i] <= 0) li.classList.add('down');
+-        return li;
+-      }));
+-      $('.loot').textContent = `+${result.gold} gold`;
+-      el.hidden = false;
+-      el.classList.remove('pop');
+-      void el.offsetWidth;
+-      el.classList.add('pop');
+-      return new Promise((resolve) => {
+-        done = resolve;
+-        $('.go').focus({ preventScroll: true });
+-      });
+-    },
+-
+-    /** Carry on: Enter, Space, a tap or the pad's A, passed in by the game. */
+-    proceed: finish,
+-  };
+-}
+diff --git a/src/battle/data.js b/src/battle/data.js
+new file mode 100644
+index 0000000..470fca6
+--- /dev/null
++++ b/src/battle/data.js
+@@ -0,0 +1,128 @@
++/**
++ * What the fights are made of: the four heroes and their skills, the
++ * monsters' fighting stats and habits, the items, and the numbers that
++ * scale it all. The rules are capitol-quest's battle system (turns, MP,
++ * LIMIT, weaknesses that BREAK, intents, auto-battle); the cast is the
++ * dungeon's.
++ */
++
++/** Skills unlock at these levels, one each, in order. */
++export const SKILL_LEVELS = [1, 2, 4, 7, 11];
++
++export const AUTO_MODES = ['Manual', 'Balanced', 'Aggressive', 'Conserve'];
++
++/**
++ * The party. `basic` is the attack every hero has for free; its `type`
++ * (physical, magic or hybrid) is what a monster's weakness is checked
++ * against. Skills cost MP; the LIMIT is free once the gauge is full.
++ */
++export const HEROES = {
++  hero: {
++    label: 'HERO', role: 'VANGUARD', accent: '#f8ce76',
++    maxHp: 90, maxMp: 24, atk: 14, def: 7, mag: 7, luck: 10,
++    basic: { name: 'Slash', type: 'physical' },
++    skills: [
++      { name: 'Valor Strike', cost: 6, target: 'enemy', kind: 'physical', power: 1.45, pose: 'attack', desc: 'A heavy blow against one enemy.' },
++      { name: 'Rally', cost: 8, target: 'allies', kind: 'buffAtk', pose: 'support', desc: "Raise the party's ATK for three rounds." },
++      { name: 'Cross Slash', cost: 11, target: 'enemies', kind: 'physicalAll', power: 0.9, pose: 'attack', desc: 'Cut across every enemy.' },
++      { name: 'Finishing Blow', cost: 13, target: 'enemy', kind: 'physical', power: 2.05, pose: 'attack', expose: true, desc: 'A great blow that leaves the target exposed for two rounds.' },
++      { name: 'Banner', cost: 16, target: 'allies', kind: 'formation', pose: 'support', desc: "Raise the party's ATK and DEF for three rounds." },
++    ],
++    limit: { name: 'Braveheart', target: 'enemies', kind: 'physicalAll', power: 1.5, pose: 'attack', desc: 'A sweeping strike at every enemy.' },
++  },
++  warrior: {
++    label: 'WARRIOR', role: 'BULWARK', accent: '#9fd4a8',
++    maxHp: 96, maxMp: 18, atk: 15, def: 9, mag: 4, luck: 9,
++    basic: { name: 'Axe', type: 'physical' },
++    skills: [
++      { name: 'Crushing Blow', cost: 6, target: 'enemy', kind: 'physical', power: 1.4, crit: 0.25, pose: 'attack', desc: 'A heavy swing with a high chance to crit.' },
++      { name: 'Shield Wall', cost: 6, target: 'self', kind: 'buffDef', pose: 'support', desc: 'Raise DEF and halve the next hit.' },
++      { name: 'Whirlwind', cost: 11, target: 'enemies', kind: 'physicalAll', power: 0.9, pose: 'attack', desc: 'Spin the axe through every enemy.' },
++      { name: 'Hamstring', cost: 12, target: 'enemy', kind: 'physical', power: 1.8, weaken: true, pose: 'attack', desc: 'A hard cut that lowers enemy ATK for three rounds.' },
++      { name: 'Hold the Line', cost: 14, target: 'allies', kind: 'protect', pose: 'support', desc: 'Raise party DEF and brace for the next enemy turn.' },
++    ],
++    limit: { name: 'Berserk', target: 'enemy', kind: 'physical', power: 2.3, crit: 0.35, pose: 'attack', desc: 'A massive blow at one enemy.' },
++  },
++  mage: {
++    label: 'MAGE', role: 'ARCANIST', accent: '#a99cf4',
++    maxHp: 76, maxMp: 34, atk: 7, def: 4, mag: 15, luck: 11,
++    basic: { name: 'Magic Missile', type: 'magic' },
++    skills: [
++      { name: 'Fire Bolt', cost: 6, target: 'enemy', kind: 'magic', power: 1.5, pose: 'attack', desc: 'A bolt of fire at one enemy.' },
++      { name: 'Frost Shard', cost: 8, target: 'enemy', kind: 'magic', power: 1.3, weaken: true, pose: 'attack', desc: 'Ice that also lowers enemy ATK for three rounds.' },
++      { name: 'Chain Lightning', cost: 12, target: 'enemies', kind: 'magicAll', power: 1.0, pose: 'attack', desc: 'Lightning through every enemy.' },
++      { name: 'Arcane Surge', cost: 12, target: 'allies', kind: 'buffMag', pose: 'support', desc: "Raise the party's MAG and restore some MP." },
++      { name: 'Meteor', cost: 18, target: 'enemies', kind: 'magicAll', power: 1.4, pose: 'attack', desc: 'Stones of fire on every enemy.' },
++    ],
++    limit: { name: 'Starfall', target: 'enemies', kind: 'magicAll', power: 1.75, pose: 'support', desc: 'The sky falls on every enemy.' },
++  },
++  healer: {
++    label: 'HEALER', role: 'CLERIC', accent: '#f2e08a',
++    maxHp: 80, maxMp: 34, atk: 9, def: 5, mag: 13, luck: 12,
++    basic: { name: 'Smite', type: 'hybrid' },
++    skills: [
++      { name: 'Mend', cost: 6, target: 'ally', kind: 'healRegen', power: 1.1, pose: 'support', desc: 'Heal one ally and keep them healing for three rounds.' },
++      { name: 'Prayer', cost: 10, target: 'allies', kind: 'healAll', power: 0.65, pose: 'support', desc: 'Heal the whole party.' },
++      { name: 'Judgement', cost: 10, target: 'enemy', kind: 'hybrid', power: 1.5, pose: 'attack', desc: 'Holy light at one enemy. The undead hate it.' },
++      { name: 'Revive', cost: 14, target: 'ally', kind: 'revive', pose: 'support', desc: 'Bring a fallen hero back with half their HP.' },
++      { name: 'Purify', cost: 16, target: 'allies', kind: 'healAllCleanse', power: 0.95, pose: 'support', desc: 'Heal the party and lift every debuff.' },
++    ],
++    limit: { name: 'Miracle', target: 'allies', kind: 'healAllCleanse', power: 1.55, revive: true, pose: 'support', desc: 'Raise the fallen, heal everyone, lift every debuff.' },
++  },
++};
++
++export const PARTY_ORDER = ['hero', 'warrior', 'mage', 'healer'];
++
++/**
++ * The monsters as they fight: stats at level 1 (they grow with the level),
++ * the kind of hit they are weak to, how they behave (`ai`, see `planIntent`
++ * in engine.js), and who they go about with.
++ */
++export const FOES = {
++  rat: { label: 'Giant Rat', hp: 70, atk: 13, def: 4, mag: 4, weak: 'physical', trait: 'Vermin', ai: 'gnaw', pack: ['rat', 'rat'], deepPack: ['rat', 'rat', 'rat'] },
++  bat: { label: 'Cave Bat', hp: 62, atk: 12, def: 4, mag: 6, weak: 'hybrid', trait: 'Quick', ai: 'bite', pack: ['bat', 'bat'], deepPack: ['bat', 'bat', 'bat'] },
++  skeleton: { label: 'Skeleton', hp: 108, atk: 16, def: 8, mag: 6, weak: 'hybrid', trait: 'Undead', ai: 'shield', pack: ['skeleton', 'skeleton'], deepPack: ['skeleton', 'skeleton', 'bat'] },
++  goblin: { label: 'Goblin', hp: 92, atk: 15, def: 5, mag: 6, weak: 'physical', trait: 'Sneak', ai: 'stab', pack: ['goblin', 'goblin'], deepPack: ['goblin', 'goblin', 'goblin'] },
++  ooze: { label: 'Ooze', hp: 120, atk: 11, def: 9, mag: 15, weak: 'magic', trait: 'Acidic', ai: 'acid', pack: ['ooze', 'rat'], deepPack: ['ooze', 'ooze'] },
++  orc: { label: 'Orc Brute', hp: 158, atk: 21, def: 11, mag: 5, weak: 'magic', trait: 'Armored', ai: 'brute', pack: ['orc', 'goblin'], deepPack: ['orc', 'goblin', 'goblin'] },
++  wraith: { label: 'Wraith', hp: 128, atk: 12, def: 6, mag: 21, weak: 'hybrid', trait: 'Undead · Spirit', ai: 'wail', pack: ['wraith', 'skeleton'], deepPack: ['wraith', 'skeleton', 'skeleton'] },
++  dragon: { label: 'Red Dragon', hp: 260, atk: 24, def: 14, mag: 23, weak: 'magic', trait: 'Boss · Armored', ai: 'dragon', boss: true, pack: ['dragon'], deepPack: ['dragon'] },
++};
++
++/** Which monsters come with the one the die ran into, `depth` levels down: a bigger pack from the third level on. */
++export function encounter(kind, depth) {
++  const f = FOES[kind];
++  return (depth >= 3 ? f.deepPack : f.pack).slice(0, 3);
++}
++
++/** How strong the monsters are, `depth` levels down. */
++export const foeLevel = (depth) => 1 + (depth - 1) * 2;
++
++export const ITEMS = {
++  POTION: { name: 'Potion', desc: 'Restore 40 HP.', heal: 40 },
++  HIPOTION: { name: 'Hi-Potion', desc: 'Restore 90 HP.', heal: 90 },
++  ETHER: { name: 'Ether', desc: 'Restore 20 MP.', mp: 20 },
++  PHOENIX: { name: 'Phoenix Down', desc: 'Revive, or restore 60 HP.', heal: 60, revive: true },
++};
++
++export const START_ITEMS = { POTION: 3, ETHER: 1, PHOENIX: 1 };
++
++/** Experience for the next level. */
++export const xpRequired = (lvl) => (lvl >= 30 ? 0 : 120 + (lvl - 1) * 60);
++
++/**
++ * How the d20 sets the fight up — capitol-quest has no dice; this is the
++ * dungeon's own. The roll is against the DC of the monster the die ran into.
++ */
++export const OPENINGS = {
++  critical: { title: 'CRITICAL ROLL', line: 'A natural 20: the party catches them flat. Every enemy loses its first move.' },
++  advantage: { title: 'ADVANTAGE', line: 'Over the DC: the party strikes first, fired up. ATK up for two rounds.' },
++  surprised: { title: 'SURPRISED', line: 'Under the DC: the monsters move first.' },
++  fumble: { title: 'FUMBLE', line: 'A natural 1: the monsters move first, and the party is off balance. DEF down for two rounds.' },
++};
++
++export function opening(roll, dc) {
++  if (roll >= 20) return 'critical';
++  if (roll <= 1) return 'fumble';
++  return roll >= dc ? 'advantage' : 'surprised';
++}
+diff --git a/src/battle/engine.js b/src/battle/engine.js
+new file mode 100644
+index 0000000..087c4cc
+--- /dev/null
++++ b/src/battle/engine.js
+@@ -0,0 +1,944 @@
++import { grantXP } from '../party.js';
++import { AUTO_MODES, FOES, HEROES, ITEMS, OPENINGS, SKILL_LEVELS } from './data.js';
++import { MONSTERS } from '../monsters.js';
++
++/**
++ * A fight, without anything drawn: capitol-quest's battle system, ported.
++ * The party moves hero by hero — attack, a skill, an item, defend, analyze
++ * or disengage — then every monster acts on the intent it showed at the top
++ * of the round. Hitting a monster's weakness twice BREAKs it, and it loses
++ * its next move. Skills cost MP; hits build each hero's LIMIT, and a full
++ * gauge unlocks a limit skill. Statuses (ATK up, DEF down, regen...) wear
++ * off round by round. Auto-battle can play any hero.
++ *
++ * What capitol-quest doesn't have is the die. The number on top when the
++ * die ran into the monster sets the fight up (`OPENINGS` in data.js): a
++ * natural 20 catches every enemy flat, a roll over the DC gives the party
++ * the first strike and its blood up, under the DC the monsters move first,
++ * and a natural 1 leaves the party off balance as well.
++ *
++ * The battle screen (`screen.js`) draws it, reads `events` for the
++ * numbers, sparks and sounds, and passes keys and clicks to `input` and the
++ * choose/confirm methods. The tests play it with auto-battle alone.
++ */
++
++/**
++ * Monsters grow this much a level: HP, then ATK and MAG — capitol-quest's
++ * curve, a little tougher, as nothing down here gives the party a rest
++ * point between fights.
++ */
++const growth = (level) => ({ hp: (0.82 + (level - 1) * 0.095) * 1.25, power: (0.85 + (level - 1) * 0.09) * 1.12, def: 0.9 + (level - 1) * 0.06 });
++
++/** How long the beats of a move take, in seconds at 1× speed. */
++const BEATS = { intro: 0.9, hero: 0.82, heroHit: 0.36, foe: 0.72, foeHit: 0.31, message: 0.55 };
++
++const STATUS = {
++  atkUp: 'ATK↑', defUp: 'DEF↑', magUp: 'MAG↑', atkDown: 'ATK↓', defDown: 'DEF↓', magDown: 'MAG↓',
++  vulnerable: 'VULN', regen: 'REGEN', mpRegen: 'MP+',
++};
++
++export const statusText = (u) => Object.keys(u.status || {}).map((k) => STATUS[k]).filter(Boolean).join(' ');
++
++export function makeFoe(kind, level, i = 0) {
++  const d = FOES[kind];
++  const g = growth(level);
++  const hp = Math.round(d.hp * g.hp * (d.boss ? 2.1 : 1));
++  return {
++    kind, i, label: d.label, level, maxHp: hp, hp,
++    atk: Math.round(d.atk * g.power), def: Math.round(d.def * g.def), mag: Math.round(d.mag * g.power),
++    ai: d.ai, trait: d.trait, weak: d.weak, boss: !!d.boss, gold: MONSTERS[kind]?.gold ?? 10,
++    status: {}, guard: false, analyzed: false, breakPoints: 0, broken: false, resolveTurns: 0, intent: null, hitTimer: 0,
++  };
++}
++
++export class Battle {
++  /**
++   * `party` is the party (party.js), changed in place; `foes` the monster
++   * kinds; `roll` and `dc` the die against the monster it ran into.
++   */
++  constructor({ party, foes, level = 1, roll = 10, dc = 10, settings = {}, random = Math.random, label = 'ENCOUNTER' }) {
++    this.party = party;
++    this.heroes = party.heroes;
++    this.inventory = party.inventory;
++    this.random = random;
++    this.settings = { autoMode: 0, battleSpeed: 1, autoItems: true, autoLimits: true, autoContinue: true, ...settings };
++    this.enemies = foes.slice(0, 3).map((kind, i) => makeFoe(kind, kind === 'dragon' ? Math.max(level, averageLevel(party)) : level, i));
++    this.boss = this.enemies.some((e) => e.boss);
++    this.round = 1;
++    this.phase = 'intro';
++    this.timer = BEATS.intro;
++    this.menuIndex = 0;
++    this.subIndex = 0;
++    this.targetIndex = 0;
++    this.pending = null;
++    this.action = null;
++    this.enemyQueue = [];
++    this.enemyIndex = 0;
++    this.autoClock = 0;
++    this.messageClock = 0;
++    this.resultClock = 0;
++    this.breaks = 0;
++    this.events = [];
++    this.done = null;
++    this.result = null;
++    this.roll = roll;
++    this.dc = dc;
++    this.opening = roll >= 20 ? 'critical' : roll <= 1 ? 'fumble' : roll >= dc ? 'advantage' : 'surprised';
++    for (const h of this.heroes) {
++      h.alive = h.hp > 0;
++      h.guard = false;
++      h.status = {};
++      h.hitTimer = 0;
++    }
++    this.actorIndex = Math.max(0, this.heroes.findIndex((h) => h.alive));
++    // The die's say in it.
++    if (this.opening === 'critical') {
++      for (const e of this.enemies) e.broken = true;
++      for (const h of this.heroes) h.limit = Math.min(100, h.limit + 50);
++    } else if (this.opening === 'advantage') {
++      for (const h of this.heroes) this.addStatus(h, 'atkUp', 2);
++    } else if (this.opening === 'fumble') {
++      for (const h of this.heroes) this.addStatus(h, 'defDown', 2);
++    }
++    this.refreshIntents();
++    const names = this.enemies.map((e) => e.label).join(' + ');
++    this.message = `${label} · ${names} · ROLLED ${roll} vs DC ${dc}: ${OPENINGS[this.opening].title}`;
++    this.emit('sfx', { name: 'confirm' });
++  }
++
++  // ————————————————————————————————————— helpers
++
++  rand(a, b) { return Math.floor(this.random() * (b - a + 1)) + a; }
++
++  choice(list) { return list[Math.floor(this.random() * list.length)]; }
++
++  emit(type, data = {}) { this.events.push({ type, ...data }); }
++
++  floater(who, text, color) { this.emit('floater', { who, text, color }); }
++
++  fx(kind, who) { this.emit('fx', { kind, who }); }
++
++  aliveParty() { return this.heroes.filter((h) => h.alive && h.hp > 0); }
++
++  aliveEnemies() { return this.enemies.filter((e) => e.hp > 0); }
++
++  currentActor() { return this.heroes[this.actorIndex]; }
++
++  isHero(u) { return this.heroes.includes(u); }
++
++  addStatus(u, key, turns) { u.status[key] = Math.max(u.status[key] || 0, turns); }
++
++  effective(u, stat) {
++    let v = u[stat];
++    const st = u.status || {};
++    if (stat === 'atk') { if (st.atkUp) v *= 1.25; if (st.atkDown) v *= 0.76; }
++    if (stat === 'def') { if (st.defUp) v *= 1.3; if (st.defDown) v *= 0.76; }
++    if (stat === 'mag') { if (st.magUp) v *= 1.25; if (st.magDown) v *= 0.76; }
++    return v;
++  }
++
++  // ————————————————————————————————————— damage
++
++  damagePhysical(a, t, power = 1, critBonus = 0) {
++    let base = this.effective(a, 'atk') * power - this.effective(t, 'def') * 0.52 + this.rand(-2, 3);
++    const crit = this.random() < (a.luck || 8) / 250 + critBonus;
++    if (t.status?.vulnerable) base *= 1.22;
++    if (t.guard) base *= 0.5;
++    if (crit) base *= 1.55;
++    return { amount: Math.max(1, Math.round(base)), crit };
++  }
++
++  damageMagic(a, t, power = 1) {
++    let base = this.effective(a, 'mag') * power - this.effective(t, 'def') * 0.26 + this.rand(-2, 3);
++    if (t.status?.vulnerable) base *= 1.22;
++    if (t.guard) base *= 0.62;
++    return { amount: Math.max(1, Math.round(base)), crit: false };
++  }
++
++  damageHybrid(a, t, power = 1) {
++    let base = (this.effective(a, 'atk') * 0.45 + this.effective(a, 'mag') * 0.72) * power - this.effective(t, 'def') * 0.34 + this.rand(-2, 3);
++    if (t.status?.vulnerable) base *= 1.2;
++    if (t.guard) base *= 0.58;
++    const crit = this.random() < (a.luck || 8) / 300;
++    if (crit) base *= 1.5;
++    return { amount: Math.max(1, Math.round(base)), crit };
++  }
++
++  damage(type, a, t, power, crit) {
++    return type === 'magic' ? this.damageMagic(a, t, power) : type === 'hybrid' ? this.damageHybrid(a, t, power) : this.damagePhysical(a, t, power, crit);
++  }
++
++  dealDamage(t, res) {
++    t.hp = Math.max(0, t.hp - res.amount);
++    if (this.isHero(t)) {
++      t.alive = t.hp > 0;
++      t.limit = Math.min(100, t.limit + 10);
++    }
++    t.hitTimer = 0.28;
++    this.floater(t, res.crit ? `CRIT ${res.amount}` : `${res.amount}`, res.crit ? '#ffe970' : '#ffffff');
++    this.emit('shake', { size: res.crit ? 7 : 4 });
++    this.emit('sfx', { name: 'hit' });
++  }
++
++  /** What kind of hit an action is: physical, magic, hybrid — or none. */
++  attackType(a) {
++    if (a.kind === 'basic') return HEROES[a.actor.id].basic.type;
++    return a.skill?.kind.replace('All', '') || 'none';
++  }
++
++  /** Damage from a hero to a monster: more against its weakness. */
++  applyDamage(t, res) {
++    if (this.action && this.isHero(this.action.actor) && this.enemies.includes(t)) {
++      const multiplier = this.attackType(this.action) === t.weak ? 1.16 : 1;
++      res = { ...res, amount: Math.round(res.amount * multiplier) };
++    }
++    this.dealDamage(t, res);
++  }
++
++  tickStatuses(units) {
++    for (const u of units) {
++      if (u.hp <= 0) continue;
++      if (u.status.regen) {
++        const amt = Math.max(2, Math.round(u.maxHp * 0.04));
++        u.hp = Math.min(u.maxHp, u.hp + amt);
++        this.floater(u, `+${amt}`, '#7dff9f');
++      }
++      if (u.status.mpRegen && u.maxMp) {
++        const amt = Math.max(1, Math.round(u.maxMp * 0.04));
++        u.mp = Math.min(u.maxMp, u.mp + amt);
++        this.floater(u, `+${amt} MP`, '#76ddff');
++      }
++      for (const k of Object.keys(u.status)) {
++        u.status[k]--;
++        if (u.status[k] <= 0) delete u.status[k];
++      }
++    }
++  }
++
++  // ————————————————————————————————————— what the heroes can do
++
++  skillsFor(h) {
++    const d = HEROES[h.id];
++    const list = d.skills.filter((s, i) => h.lvl >= SKILL_LEVELS[i]).map((s) => ({ ...s, limit: false }));
++    if (h.limit >= 100) list.push({ ...d.limit, cost: 0, limit: true });
++    return list;
++  }
++
++  items() {
++    return Object.entries(this.inventory).filter(([k, v]) => v > 0 && ITEMS[k]);
++  }
++
++  targets() {
++    if (this.pending?.targetType === 'enemy') return this.aliveEnemies();
++    if (this.pending?.skill?.kind === 'revive') return this.heroes.filter((h) => !h.alive);
++    if (this.pending?.kind === 'item' && ITEMS[this.pending.item]?.revive) return this.heroes;
++    return this.aliveParty();
++  }
++
++  /** Take the hero's choice from the six commands: attack, skills, items, defend, analyze, disengage. */
++  commitMenu() {
++    const h = this.currentActor();
++    if (!h || !h.alive) { this.advancePlayer(); return; }
++    this.emit('sfx', { name: 'confirm' });
++    const i = this.menuIndex;
++    if (i === 0) {
++      this.pending = { kind: 'basic', targetType: 'enemy' };
++      this.targetIndex = 0;
++      this.phase = 'target';
++    } else if (i === 1) {
++      this.subIndex = 0;
++      this.phase = 'skills';
++    } else if (i === 2) {
++      if (!this.items().length) {
++        this.message = 'NO ITEMS LEFT.';
++        this.phase = 'message';
++        this.pending = null;
++        this.emit('sfx', { name: 'error' });
++      } else {
++        this.subIndex = 0;
++        this.phase = 'items';
++      }
++    } else if (i === 3) {
++      this.beginPlayerAction({ kind: 'guard', actor: h, pose: 'support' });
++    } else if (i === 4) {
++      this.targetIndex = 0;
++      this.phase = 'analyze';
++    } else if (i === 5) {
++      this.disengage();
++    }
++  }
++
++  disengage() {
++    if (this.boss) {
++      this.message = 'THERE IS NO RUNNING FROM THIS ONE.';
++      this.phase = 'message';
++      this.emit('sfx', { name: 'error' });
++    } else if (this.random() < 0.72) {
++      this.message = 'THE PARTY GOT AWAY.';
++      this.phase = 'fled';
++      this.timer = 0.6;
++    } else {
++      this.message = 'COULD NOT GET AWAY.';
++      this.phase = 'message';
++      this.pending = { advanceAfterMessage: true };
++    }
++  }
++
++  chooseSkill(s) {
++    if (!s) return;
++    const h = this.currentActor();
++    if (s.kind === 'revive' && !this.heroes.some((p) => !p.alive)) {
++      this.message = 'NOBODY IS DOWN.';
++      this.emit('sfx', { name: 'error' });
++      return;
++    }
++    if (!s.limit && h.mp < s.cost) {
++      this.message = 'NOT ENOUGH MP.';
++      this.phase = 'message';
++      this.pending = null;
++      this.emit('sfx', { name: 'error' });
++      return;
++    }
++    this.pending = { kind: 'skill', skill: s, targetType: s.target === 'enemy' ? 'enemy' : s.target === 'ally' ? 'ally' : null };
++    if (s.target === 'enemy' || s.target === 'ally') {
++      this.targetIndex = 0;
++      this.phase = 'target';
++    } else {
++      this.beginPlayerAction({
++        kind: 'skill', actor: h, skill: s, pose: s.pose,
++        targets: s.target === 'enemies' ? this.aliveEnemies() : s.target === 'allies' ? this.aliveParty() : [h],
++      });
++    }
++  }
++
++  chooseItem(key) {
++    this.pending = { kind: 'item', item: key, targetType: 'ally' };
++    this.targetIndex = 0;
++    this.phase = 'target';
++  }
++
++  confirmTarget(target) {
++    const h = this.currentActor(), pd = this.pending;
++    if (!pd || !target) return;
++    if (pd.kind === 'basic') this.beginPlayerAction({ kind: 'basic', actor: h, target, pose: 'attack' });
++    else if (pd.kind === 'skill') this.beginPlayerAction({ kind: 'skill', actor: h, skill: pd.skill, targets: [target], pose: pd.skill.pose });
++    else if (pd.kind === 'item') this.beginPlayerAction({ kind: 'item', actor: h, target, item: pd.item, pose: 'support' });
++  }
++
++  analyze(e) {
++    e.analyzed = true;
++    this.addStatus(e, 'vulnerable', 2);
++    this.message = `ANALYZED ${e.label}: ${e.trait}. Weak to ${e.weak.toUpperCase()}. Vulnerable for 2 rounds.`;
++    this.phase = 'message';
++    this.emit('sfx', { name: 'magic' });
++    this.pending = { advanceAfterMessage: true };
++  }
++
++  // ————————————————————————————————————— a hero's move
++
++  beginPlayerAction(a) {
++    if (a.skill) {
++      if (a.skill.limit) a.actor.limit = 0;
++      else a.actor.mp -= a.skill.cost;
++    }
++    const who = a.actor.label;
++    this.message = a.kind === 'basic' ? `${who}: ${HEROES[a.actor.id].basic.name}`
++      : a.kind === 'skill' ? `${who}: ${a.skill.name}`
++        : a.kind === 'guard' ? `${who}: Defend` : `${who}: ${ITEMS[a.item].name}`;
++    this.action = { ...a, t: 0, applied: false, duration: BEATS.hero };
++    this.phase = 'action';
++    this.pending = null;
++    this.emit('sfx', { name: 'confirm' });
++  }
++
++  resolveCorePlayerAction(a) {
++    const h = a.actor;
++    if (a.kind === 'guard') {
++      h.guard = true;
++      this.addStatus(h, 'defUp', 2);
++      this.message = `${h.label} braces for it.`;
++      this.fx('buff', h);
++      return this.endPlayerAction();
++    }
++    if (a.kind === 'item') {
++      if (!this.inventory[a.item]) {
++        this.message = 'THE ITEM IS GONE.';
++        return this.endPlayerAction();
++      }
++      this.inventory[a.item]--;
++      const it = ITEMS[a.item], t = a.target;
++      if (it.revive && !t.alive) {
++        t.hp = Math.min(t.maxHp, it.heal);
++        t.alive = true;
++        t.status = {};
++        this.floater(t, 'REVIVED', '#a5e4ba');
++      } else if (it.heal) {
++        const before = t.hp;
++        t.hp = Math.min(t.maxHp, t.hp + it.heal);
++        t.alive = t.hp > 0;
++        this.floater(t, `+${t.hp - before}`, '#7dff9f');
++      } else if (it.mp) {
++        const before = t.mp;
++        t.mp = Math.min(t.maxMp, t.mp + it.mp);
++        this.floater(t, `+${t.mp - before} MP`, '#76ddff');
++      }
++      h.limit = Math.min(100, h.limit + 8);
++      this.message = `${h.label} used ${it.name} on ${t.label}.`;
++      this.fx('heal', t);
++      this.emit('sfx', { name: 'heal' });
++      return this.endPlayerAction();
++    }
++    if (a.kind === 'basic') {
++      const type = HEROES[h.id].basic.type;
++      const res = this.damage(type, h, a.target, 1, 0);
++      this.applyDamage(a.target, res);
++      h.limit = Math.min(100, h.limit + 10);
++      this.message = `${h.label} hits ${a.target.label}${res.crit ? ' — CRITICAL' : ''}.`;
++      this.fx(type === 'physical' ? 'hit' : type, a.target);
++      return this.endPlayerAction();
++    }
++    const s = a.skill, targets = a.targets || [];
++    this.message = `${h.label} used ${s.name}.`;
++    if (['physical', 'magic', 'hybrid'].includes(s.kind)) {
++      const t = targets[0];
++      const res = this.damage(s.kind, h, t, s.power, s.crit || 0);
++      this.applyDamage(t, res);
++      if (s.expose) this.addStatus(t, 'vulnerable', 2);
++      if (s.weaken) this.addStatus(t, 'atkDown', 3);
++      this.fx(s.kind === 'physical' ? 'hit' : s.kind, t);
++      h.limit = Math.min(100, h.limit + 10);
++    } else if (['physicalAll', 'magicAll', 'hybridAll'].includes(s.kind)) {
++      const type = s.kind.replace('All', '');
++      for (const t of targets) {
++        this.applyDamage(t, this.damage(type, h, t, s.power, s.crit || 0));
++        this.fx(type === 'physical' ? 'hit' : type, t);
++      }
++      h.limit = Math.min(100, h.limit + 10);
++    } else if (s.kind === 'buffAtk') {
++      for (const t of targets) { this.addStatus(t, 'atkUp', 3); this.fx('buff', t); }
++    } else if (s.kind === 'buffDef') {
++      this.addStatus(h, 'defUp', 3);
++      h.guard = true;
++      this.fx('buff', h);
++    } else if (s.kind === 'buffMag') {
++      for (const t of targets) {
++        this.addStatus(t, 'magUp', 3);
++        this.addStatus(t, 'mpRegen', 3);
++        t.mp = Math.min(t.maxMp, t.mp + 6);
++        this.fx('buff', t);
++      }
++    } else if (s.kind === 'heal' || s.kind === 'healRegen') {
++      const t = targets[0], amt = Math.round(8 + this.effective(h, 'mag') * s.power), before = t.hp;
++      t.hp = Math.min(t.maxHp, t.hp + amt);
++      t.alive = true;
++      if (s.kind === 'healRegen') this.addStatus(t, 'regen', 3);
++      this.floater(t, `+${t.hp - before}`, '#7dff9f');
++      this.fx('heal', t);
++      this.emit('sfx', { name: 'heal' });
++    } else if (s.kind === 'healAll' || s.kind === 'healAllCleanse') {
++      const amt = Math.round(6 + this.effective(h, 'mag') * s.power);
++      const who = s.revive ? this.heroes : targets;
++      for (const t of who) {
++        if (!t.alive) {
++          if (!s.revive) continue;
++          t.alive = true;
++          t.hp = 0;
++          t.status = {};
++        }
++        const before = t.hp;
++        t.hp = Math.min(t.maxHp, t.hp + amt);
++        if (s.kind === 'healAllCleanse') for (const k of ['atkDown', 'defDown', 'magDown', 'vulnerable']) delete t.status[k];
++        this.floater(t, before === 0 ? 'REVIVED' : `+${t.hp - before}`, '#7dff9f');
++        this.fx('heal', t);
++      }
++      this.emit('sfx', { name: 'heal' });
++    }
++    return this.endPlayerAction();
++  }
++
++  resolvePlayerActionWithBreaks(a) {
++    const foes = (a.target ? [a.target] : a.targets || []).filter((t) => this.enemies.includes(t));
++    const before = foes.map((t) => t.hp);
++    this.resolveCorePlayerAction(a);
++    foes.forEach((e, i) => {
++      if (e.hp >= before[i] || e.hp <= 0) return;
++      if (this.attackType(a) === e.weak && !e.resolveTurns) {
++        e.breakPoints = (e.breakPoints || 0) + 1;
++        this.floater(e, 'WEAK', '#f8ce76');
++        if (e.breakPoints >= 2) {
++          e.breakPoints = 0;
++          e.broken = true;
++          this.addStatus(e, 'vulnerable', 2);
++          this.message += ' BREAK! It loses its next move.';
++          this.floater(e, 'BREAK!', '#84e4fa');
++          e.intent = this.planIntent(e);
++        }
++      }
++    });
++  }
++
++  resolvePlayerAction(a) {
++    const h = a.actor, s = a.skill;
++    if (s?.kind === 'revive') {
++      const t = a.targets[0];
++      if (t && !t.alive) {
++        t.hp = Math.round(t.maxHp * 0.5);
++        t.alive = true;
++        t.status = {};
++        this.floater(t, 'REVIVED', '#a5e4ba');
++        this.fx('heal', t);
++        this.emit('sfx', { name: 'heal' });
++      }
++      this.endPlayerAction();
++      return;
++    }
++    if (s && ['formation', 'protect'].includes(s.kind)) {
++      for (const t of a.targets) {
++        this.addStatus(t, 'defUp', 3);
++        if (s.kind === 'formation') this.addStatus(t, 'atkUp', 3);
++        else t.guard = true;
++        this.fx('buff', t);
++      }
++      this.message = `${h.label} used ${s.name}.`;
++      this.endPlayerAction();
++      return;
++    }
++    const brokenBefore = this.aliveEnemies().filter((e) => e.broken).length;
++    this.resolvePlayerActionWithBreaks(a);
++    if (a.kind === 'basic') h.mp = Math.min(h.maxMp, h.mp + 2);
++    if (a.kind === 'guard') h.mp = Math.min(h.maxMp, h.mp + 4);
++    this.breaks += Math.max(0, this.aliveEnemies().filter((e) => e.broken).length - brokenBefore);
++  }
++
++  endPlayerAction() {
++    if (!this.action) return;
++    this.action.willWin = this.aliveEnemies().length === 0;
++    this.action.resolved = true;
++  }
++
++  // ————————————————————————————————————— the monsters' moves
++
++  refreshIntents() {
++    for (const e of this.enemies) e.intent = this.planIntent(e);
++  }
++
++  /** What a monster means to do this round, shown over its head. */
++  planIntent(e) {
++    if (e.broken) return { kind: 'broken', label: 'BROKEN · skips turn', power: 0 };
++    const round = this.round;
++    const low = e.hp / e.maxHp;
++    switch (e.ai) {
++      case 'gnaw':
++        if (round % 3 === 2) return { kind: 'drain', label: 'Gnaw · drains HP', power: 0.9 };
++        break;
++      case 'bite':
++        if (round % 2 === 0) return { kind: 'drain', label: 'Bite · drains HP', power: 0.85 };
++        break;
++      case 'shield':
++        if (round % 3 === 2) return { kind: 'guard', label: 'Raise shield · armor up', power: 1 };
++        break;
++      case 'stab':
++        if (round % 3 === 0) return { kind: 'disrupt', label: 'Dirty trick · lowers MAG', power: 0.9 };
++        break;
++      case 'brute':
++        if (round % 3 === 2) return { kind: 'guard', label: 'Brace · armor up', power: 1 };
++        if (round % 3 === 0) return { kind: 'physical', label: 'Smash · heavy strike', power: 1.3 };
++        break;
++      case 'acid':
++        if (round % 2 === 0) return { kind: 'corrode', label: 'Acid · lowers DEF', power: 0.9 };
++        return { kind: 'magic', label: 'Spit', power: 1 };
++      case 'wail':
++        if (round % 3 === 0) return { kind: 'sweep', label: 'WAIL · all heroes', power: 0.8, magic: true };
++        return { kind: 'magic', label: 'Chill touch', power: 1 };
++      case 'dragon':
++        if (round % 3 === 0) return { kind: 'sweep', label: 'FIRE BREATH · all heroes', power: 1.05, magic: true };
++        if (low < 0.4) return { kind: 'physical', label: 'FURY · rending claws', power: 1.5 };
++        return { kind: 'physical', label: 'Claw', power: 1.2 };
++    }
++    return { kind: 'physical', label: e.resolveTurns ? 'RESOLVE · strike' : 'Strike', power: e.boss ? 1.2 : 1 };
++  }
++
++  resolveEnemyAction(e) {
++    if (e.broken) {
++      e.broken = false;
++      e.resolveTurns = 2;
++      e.intent = this.planIntent(e);
++      this.message = `${e.label} is broken and loses its move.`;
++      return;
++    }
++    const move = e.intent || this.planIntent(e), living = this.aliveParty();
++    if (!living.length) return this.lose();
++    this.message = `${e.label}: ${move.label}.`;
++    if (move.kind === 'guard') {
++      e.guard = true;
++      this.addStatus(e, 'defUp', 2);
++      return;
++    }
++    // The front of the line takes more of it.
++    const targets = move.kind === 'sweep' ? living : [this.pickTarget(living)];
++    for (const t of targets) {
++      const magic = ['magic', 'disrupt', 'corrode'].includes(move.kind) || move.magic;
++      const res = magic ? this.damageMagic(e, t, move.power) : this.damagePhysical(e, t, move.power);
++      this.applyDamage(t, res);
++      if (move.kind === 'disrupt') this.addStatus(t, 'magDown', 2);
++      if (move.kind === 'corrode') this.addStatus(t, 'defDown', 2);
++      if (move.kind === 'drain') {
++        const back = Math.round(res.amount * 0.6);
++        e.hp = Math.min(e.maxHp, e.hp + back);
++        this.floater(e, `+${back}`, '#9ee6b8');
++      }
++      this.fx(magic ? 'magic' : 'claw', t);
++    }
++    if (!this.aliveParty().length) this.lose();
++  }
++
++  pickTarget(living) {
++    const weight = (h) => ({ hero: 3, warrior: 4, mage: 2, healer: 2 }[h.id] ?? 2) * (h.guard ? 1.5 : 1);
++    let pick = this.random() * living.reduce((s, h) => s + weight(h), 0);
++    for (const h of living) {
++      pick -= weight(h);
++      if (pick < 0) return h;
++    }
++    return living[living.length - 1];
++  }
++
++  // ————————————————————————————————————— whose turn
++
++  advancePlayer() {
++    this.pending = null;
++    let i = this.actorIndex + 1;
++    while (i < this.heroes.length && !this.heroes[i].alive) i++;
++    if (i < this.heroes.length) {
++      this.actorIndex = i;
++      this.menuIndex = 0;
++      this.phase = 'input';
++      return;
++    }
++    this.startEnemyPhase();
++  }
++
++  startEnemyPhase() {
++    for (const e of this.enemies) e.guard = false;
++    this.enemyQueue = this.aliveEnemies().slice();
++    this.enemyIndex = 0;
++    this.phase = 'enemyAction';
++    this.startEnemyAction();
++  }
++
++  startEnemyAction() {
++    const round = this.round;
++    this.advanceEnemyTurn();
++    if (this.round !== round) {
++      for (const e of this.enemies) e.resolveTurns = Math.max(0, (e.resolveTurns || 0) - 1);
++      this.refreshIntents();
++    }
++  }
++
++  advanceEnemyTurn() {
++    if (this.phase === 'defeat') return;
++    if (this.enemyIndex >= this.enemyQueue.length) {
++      this.tickStatuses(this.heroes);
++      this.tickStatuses(this.enemies);
++      for (const h of this.heroes) h.guard = false;
++      this.round++;
++      this.actorIndex = 0;
++      while (this.actorIndex < this.heroes.length && !this.heroes[this.actorIndex].alive) this.actorIndex++;
++      if (this.actorIndex >= this.heroes.length) return this.lose();
++      this.phase = 'input';
++      this.menuIndex = 0;
++      return;
++    }
++    const e = this.enemyQueue[this.enemyIndex];
++    if (e.hp <= 0) {
++      this.enemyIndex++;
++      return this.advanceEnemyTurn();
++    }
++    this.action = { kind: 'enemy', actor: e, t: 0, applied: false, duration: BEATS.foe };
++    this.phase = 'enemyAction';
++  }
++
++  // ————————————————————————————————————— the end of it
++
++  win() {
++    if (this.phase === 'victory') return;
++    const level = Math.max(...this.enemies.map((e) => e.level));
++    // capitol-quest's reward, scaled down: a delve has a good deal more fights in it than a district.
++    const xp = this.boss ? 140 + level * 24 : 20 + level * 8 + this.enemies.length * 6;
++    const gold = this.enemies.reduce((s, e) => s + e.gold, 0) * (this.opening === 'critical' ? 2 : 1);
++    for (const h of this.heroes) h.limit = Math.min(100, h.limit + 6);
++    const gains = grantXP(this.party, xp);
++    // A breather after a win: some HP and MP back.
++    for (const h of this.heroes) {
++      if (!h.alive) continue;
++      h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.12));
++      h.mp = Math.min(h.maxMp, h.mp + Math.round(h.maxMp * 0.1));
++    }
++    this.phase = 'victory';
++    this.result = { won: true, xp, gold, gains, rounds: this.round, breaks: this.breaks };
++    this.resultClock = 0;
++    this.message = `VICTORY · +${xp} XP · +${gold} GOLD`;
++    this.emit('sfx', { name: 'victory' });
++  }
++
++  lose() {
++    if (this.phase === 'defeat') return;
++    this.phase = 'defeat';
++    this.action = null;
++    this.message = 'THE PARTY HAS FALLEN.';
++    this.emit('sfx', { name: 'defeat' });
++  }
++
++  /** Leave the fight: `how` is 'won', 'fled', 'retry' or 'fallen'. */
++  finish(how) {
++    if (this.done) return;
++    for (const h of this.heroes) { h.status = {}; h.guard = false; }
++    this.done = { how, result: this.result };
++  }
++
++  // ————————————————————————————————————— time
++
++  update(dt) {
++    if (this.done) return;
++    const speed = this.settings.battleSpeed || 1;
++    const step = dt * speed;
++    for (const u of [...this.heroes, ...this.enemies]) u.hitTimer = Math.max(0, (u.hitTimer || 0) - dt);
++
++    if (this.phase === 'intro') {
++      this.timer -= step;
++      if (this.timer <= 0) {
++        if (this.opening === 'surprised' || this.opening === 'fumble') {
++          this.message = 'The monsters move first!';
++          this.startEnemyPhase();
++        } else {
++          this.phase = 'input';
++          this.actorIndex = Math.max(0, this.heroes.findIndex((h) => h.alive));
++        }
++      }
++    } else if (this.phase === 'action' && this.action) {
++      const a = this.action;
++      a.t += step;
++      if (a.t > BEATS.heroHit && !a.applied) {
++        a.applied = true;
++        this.resolvePlayerAction(a);
++      }
++      if (this.phase === 'action' && a.t >= a.duration && a.resolved) {
++        this.action = null;
++        if (a.willWin) this.win();
++        else {
++          this.phase = 'message';
++          this.pending = { advanceAfterMessage: true };
++          this.messageClock = 0;
++        }
++      }
++    } else if (this.phase === 'enemyAction' && this.action) {
++      const a = this.action;
++      a.t += step;
++      if (a.t > BEATS.foeHit && !a.applied) {
++        a.applied = true;
++        this.resolveEnemyAction(a.actor);
++      }
++      if (this.phase === 'enemyAction' && this.action && a.t >= a.duration) {
++        this.enemyIndex++;
++        this.action = null;
++        this.startEnemyAction();
++      }
++    } else if (this.phase === 'message' && this.pending?.advanceAfterMessage) {
++      this.messageClock += step;
++      if (this.messageClock > BEATS.message) {
++        this.messageClock = 0;
++        this.advancePlayer();
++      }
++    } else if (this.phase === 'fled') {
++      this.timer -= step;
++      if (this.timer <= 0) this.finish('fled');
++    }
++
++    if (this.phase === 'input' && this.settings.autoMode) {
++      this.autoClock += step;
++      if (this.autoClock >= 0.42) {
++        this.autoClock = 0;
++        this.chooseAuto();
++      }
++    } else this.autoClock = 0;
++    if (this.phase === 'message' && !this.pending?.advanceAfterMessage && this.settings.autoMode) {
++      this.phase = 'input';
++      this.pending = null;
++    }
++    if (this.phase === 'victory' && this.settings.autoContinue && this.settings.autoMode && !this.result.gains.length && !this.boss) {
++      this.resultClock += dt;
++      if (this.resultClock > 1.5) this.finish('won');
++    }
++  }
++
++  // ————————————————————————————————————— auto-battle
++
++  cycleAuto() {
++    this.setAuto((this.settings.autoMode + 1) % AUTO_MODES.length);
++  }
++
++  setAuto(n) {
++    this.settings.autoMode = n;
++    this.autoClock = 0;
++    if (['skills', 'target', 'items', 'analyze'].includes(this.phase)) {
++      this.phase = 'input';
++      this.pending = null;
++    }
++  }
++
++  /** capitol-quest's auto-battle: revive, heal, guard against a charge, break weaknesses, spend MP by strategy. */
++  chooseAuto() {
++    const h = this.currentActor();
++    if (!h?.alive) { this.advancePlayer(); return; }
++    const settings = this.settings, strategy = settings.autoMode;
++    const enemies = this.aliveEnemies(), allies = this.aliveParty();
++    if (!enemies.length) { this.win(); return; }
++    const affordable = this.skillsFor(h).filter((s) => (s.limit ? settings.autoLimits : s.cost <= h.mp));
++    const hurtMost = [...allies].sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
++    const fallen = this.heroes.find((t) => !t.alive);
++    const cast = (s, ts) => this.beginPlayerAction({ kind: 'skill', actor: h, skill: s, targets: ts, pose: s.pose });
++    const revive = affordable.find((s) => s.kind === 'revive' || (s.limit && s.revive));
++    if (fallen && revive) { cast(revive, revive.kind === 'revive' ? [fallen] : allies); return; }
++    if (fallen && settings.autoItems && this.inventory.PHOENIX) {
++      this.beginPlayerAction({ kind: 'item', actor: h, item: 'PHOENIX', target: fallen, pose: 'support' });
++      return;
++    }
++    const healing = affordable.filter((s) => /^heal/.test(s.kind));
++    const low = allies.filter((t) => t.hp / t.maxHp < (strategy === 2 ? 0.4 : 0.65));
++    if (low.length >= 2) {
++      const aoe = healing.find((s) => s.kind.includes('All'));
++      if (aoe) { cast(aoe, allies); return; }
++    }
++    if (hurtMost.hp / hurtMost.maxHp < (strategy === 2 ? 0.28 : 0.52)) {
++      const heal = healing.find((s) => !s.kind.includes('All')) || healing[0];
++      if (heal) { cast(heal, heal.target === 'allies' ? allies : [hurtMost]); return; }
++      if (settings.autoItems) {
++        const key = this.inventory.HIPOTION ? 'HIPOTION' : this.inventory.POTION ? 'POTION' : this.inventory.PHOENIX ? 'PHOENIX' : null;
++        if (key) {
++          this.beginPlayerAction({ kind: 'item', actor: h, item: key, target: hurtMost, pose: 'support' });
++          return;
++        }
++      }
++    }
++    const charging = enemies.some((e) => !e.broken && e.intent?.kind === 'sweep');
++    if (strategy !== 2 && charging && h.hp / h.maxHp < 0.65) {
++      this.beginPlayerAction({ kind: 'guard', actor: h, pose: 'support' });
++      return;
++    }
++    const hitType = HEROES[h.id].basic.type;
++    const score = (e) => (e.weak === hitType ? 2 : 0) + (e.breakPoints || 0) * 2 + (1 - e.hp / e.maxHp);
++    const target = [...enemies].sort((a, b) => score(b) - score(a))[0];
++    const offensive = affordable.filter((s) => /^(physical|hybrid|magic)/.test(s.kind));
++    const limit = offensive.find((s) => s.limit);
++    if (limit) { cast(limit, limit.target === 'enemies' ? enemies : [target]); return; }
++    if (strategy !== 3) {
++      if (this.round === 1 && this.boss && h.id === 'hero' && !h.status.atkUp) {
++        const buff = affordable.find((s) => ['buffAtk', 'formation'].includes(s.kind));
++        if (buff) { cast(buff, allies); return; }
++      }
++      const reserve = strategy === 1 ? h.maxMp * 0.18 : 0;
++      const attack = offensive
++        .filter((s) => h.mp - s.cost >= reserve)
++        .sort((a, b) => {
++          const value = (s) => s.power * (s.target === 'enemies' ? enemies.length * 0.86 : 1) * (target.weak === s.kind.replace('All', '') ? 1.16 : 1);
++          return value(b) - value(a);
++        })[0];
++      if (attack) { cast(attack, attack.target === 'enemies' ? enemies : [target]); return; }
++    }
++    this.beginPlayerAction({ kind: 'basic', actor: h, target, pose: 'attack' });
++  }
++
++  // ————————————————————————————————————— keys
++
++  /**
++   * A key, by name (lower case, as KeyboardEvent.key): arrows or WASD to
++   * move through the menus, Enter or Space to choose, Escape to go back,
++   * 1–6 for the commands, B to change auto-battle, V for speed.
++   */
++  input(k) {
++    if (k === 'b') { this.cycleAuto(); return; }
++    if (k === 'v') { this.settings.battleSpeed = (this.settings.battleSpeed % 3) + 1; return; }
++    if (k === 'escape' && this.settings.autoMode) { this.setAuto(0); return; }
++    if (k === 'e') k = 'enter';
++    const go = k === 'enter' || k === ' ';
++    if (this.phase === 'victory') { if (go) this.finish('won'); return; }
++    if (this.phase === 'defeat') return;
++    if (this.phase === 'message') {
++      if (!go) return;
++      const pd = this.pending;
++      this.pending = null;
++      this.emit('sfx', { name: 'confirm' });
++      if (pd?.advanceAfterMessage) this.advancePlayer();
++      else this.phase = 'input';
++      return;
++    }
++    if (['intro', 'action', 'enemyAction', 'fled'].includes(this.phase)) return;
++    if (k === 'escape') {
++      if (['skills', 'items', 'target', 'analyze'].includes(this.phase)) {
++        this.phase = 'input';
++        this.pending = null;
++        this.emit('sfx', { name: 'cancel' });
++      }
++      return;
++    }
++    const prev = ['arrowleft', 'a', 'arrowup', 'w'].includes(k), next = ['arrowright', 'd', 'arrowdown', 's'].includes(k);
++    const move = () => this.emit('sfx', { name: 'move' });
++    if (this.phase === 'input') {
++      if (k === 'arrowleft' || k === 'a') { this.menuIndex = (this.menuIndex + 5) % 6; move(); }
++      else if (k === 'arrowright' || k === 'd') { this.menuIndex = (this.menuIndex + 1) % 6; move(); }
++      else if (k === 'arrowup' || k === 'w') { this.menuIndex = (this.menuIndex + 4) % 6; move(); }
++      else if (k === 'arrowdown' || k === 's') { this.menuIndex = (this.menuIndex + 2) % 6; move(); }
++      else if (k >= '1' && k <= '6') { this.menuIndex = Number(k) - 1; this.commitMenu(); }
++      else if (go) this.commitMenu();
++      return;
++    }
++    if (this.phase === 'skills') {
++      const list = this.skillsFor(this.currentActor());
++      if (prev) { this.subIndex = (this.subIndex + list.length - 1) % list.length; move(); }
++      else if (next) { this.subIndex = (this.subIndex + 1) % list.length; move(); }
++      else if (go) this.chooseSkill(list[this.subIndex]);
++      return;
++    }
++    if (this.phase === 'items') {
++      const list = this.items();
++      if (!list.length) { this.phase = 'input'; return; }
++      if (prev) { this.subIndex = (this.subIndex + list.length - 1) % list.length; move(); }
++      else if (next) { this.subIndex = (this.subIndex + 1) % list.length; move(); }
++      else if (go) this.chooseItem(list[this.subIndex][0]);
++      return;
++    }
++    if (this.phase === 'target') {
++      const list = this.targets();
++      if (!list.length) return;
++      if (prev) { this.targetIndex = (this.targetIndex + list.length - 1) % list.length; move(); }
++      else if (next) { this.targetIndex = (this.targetIndex + 1) % list.length; move(); }
++      else if (go) this.confirmTarget(list[this.targetIndex]);
++      return;
++    }
++    if (this.phase === 'analyze') {
++      const list = this.aliveEnemies();
++      if (prev) { this.targetIndex = (this.targetIndex + list.length - 1) % list.length; move(); }
++      else if (next) { this.targetIndex = (this.targetIndex + 1) % list.length; move(); }
++      else if (go) this.analyze(list[this.targetIndex]);
++    }
++  }
++}
++
++function averageLevel(party) {
++  return Math.round(party.heroes.reduce((s, h) => s + h.lvl, 0) / party.heroes.length);
++}
++
++/**
++ * Play a fight out with auto-battle alone, `dt` at a time, until it is won,
++ * fled or lost: for the tests and the autopilot. Returns how it ended.
++ */
++export function autoResolve(battle, { mode = 1, dt = 0.1, limit = 900 } = {}) {
++  battle.settings.autoMode = mode;
++  battle.settings.battleSpeed = 3;
++  for (let t = 0; t < limit && !battle.done; t += dt) {
++    battle.update(dt);
++    battle.events.length = 0;
++    if (battle.phase === 'victory') battle.finish('won');
++    if (battle.phase === 'defeat') battle.finish('fallen');
++  }
++  return battle.done?.how ?? 'timeout';
++}
+diff --git a/src/battle/screen.js b/src/battle/screen.js
+new file mode 100644
+index 0000000..c317056
+--- /dev/null
++++ b/src/battle/screen.js
+@@ -0,0 +1,702 @@
++import { canvasOf, flashOf, portrait } from '../sprites/index.js';
++import { AUTO_MODES, HEROES, ITEMS, OPENINGS, xpRequired } from './data.js';
++import { statusText } from './engine.js';
++
++/**
++ * The battle screen: capitol-quest's, drawn on a 1280 × 720 canvas over the
++ * dungeon — the fight across the top, the party and the commands along the
++ * bottom — with the painted sprites (`sprites/`) and a dungeon backdrop in
++ * the level's own stone. Keys and clicks go to the battle (`engine.js`);
++ * its events come back as numbers, sparks, shakes and sounds.
++ */
++
++const W = 1280, H = 720, VIEW_H = 470;
++const UI_INK = '#eae6d8', UI_GOLD = '#f2d28c', UI_MUTED = '#a8a29a';
++const FONT = 'ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace';
++const SCALE = 3;
++
++const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
++const lerp = (a, b, t) => a + (b - a) * t;
++
++/** Where each hero stands: the Hero up front, the Warrior below, the Mage and the Healer further in. */
++const PARTY_POS = [{ x: 190, y: 300 }, { x: 128, y: 432 }, { x: 352, y: 368 }, { x: 520, y: 440 }];
++
++const ENEMY_POS = [
++  [{ x: 985, y: 400 }],
++  [{ x: 880, y: 345 }, { x: 1110, y: 420 }],
++  [{ x: 820, y: 350 }, { x: 1010, y: 430 }, { x: 1165, y: 315 }],
++];
++
++export function createBattleScreen({ audio }) {
++  const shell = document.createElement('div');
++  shell.id = 'battle';
++  shell.hidden = true;
++  const canvas = document.createElement('canvas');
++  canvas.width = W;
++  canvas.height = H;
++  canvas.setAttribute('aria-label', 'Battle');
++  canvas.tabIndex = 0;
++  shell.appendChild(canvas);
++  document.body.appendChild(shell);
++  const ctx = canvas.getContext('2d');
++
++  let battle = null;
++  let resolve = null;
++  let palette = null;
++  let backdrop = null;
++  let time = 0;
++  let shake = 0;
++  let buttons = [];
++  const pointer = { x: -1, y: -1 };
++  let particles = [], floaters = [], flashes = [], projectiles = [];
++
++  // ——————————————————————————————————————— drawing helpers
++
++  function text(s, x, y, size = 18, color = '#fff', align = 'left', weight = 700) {
++    ctx.fillStyle = color;
++    ctx.font = `${weight} ${size}px ${FONT}`;
++    ctx.textAlign = align;
++    ctx.textBaseline = 'top';
++    ctx.fillText(String(s), Math.round(x), Math.round(y));
++  }
++  const panelText = (s, x, y, size = 16, color = '#e6dfd2', align = 'left') => text(s, x, y, size, color, align, 500);
++
++  function wrap(s, x, y, maxW, size = 16, color = '#c8bfb2', maxLines = 3) {
++    ctx.font = `500 ${size}px ${FONT}`;
++    ctx.textAlign = 'left';
++    ctx.textBaseline = 'top';
++    ctx.fillStyle = color;
++    let line = '', yy = y, lines = 0;
++    for (const word of String(s).split(' ')) {
++      const test = line ? `${line} ${word}` : word;
++      if (ctx.measureText(test).width > maxW && line) {
++        ctx.fillText(line, x, yy);
++        yy += size * 1.45;
++        if (++lines >= maxLines) return yy;
++        line = word;
++      } else line = test;
++    }
++    if (line) ctx.fillText(line, x, yy);
++    return yy + size * 1.45;
++  }
++
++  function box(x, y, w, h, fill = '#1a1412', stroke = '#4a3e36') {
++    ctx.fillStyle = fill;
++    ctx.fillRect(x, y, w, h);
++    ctx.strokeStyle = stroke;
++    ctx.lineWidth = 1;
++    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
++  }
++
++  function bar(x, y, w, h, value, max, color) {
++    ctx.fillStyle = '#3a302c';
++    ctx.fillRect(x, y, w, h);
++    ctx.fillStyle = color;
++    ctx.fillRect(x, y, Math.round(w * clamp(max ? value / max : 0, 0, 1)), h);
++  }
++
++  function diamond(x, y, color, r = 8) {
++    ctx.fillStyle = color;
++    ctx.beginPath();
++    ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
++    ctx.closePath();
++    ctx.fill();
++  }
++
++  function button(label, x, y, w, h, fn, { active = false, disabled = false, sub = '', accent = '#f2b45c' } = {}) {
++    const hot = pointer.x >= x && pointer.x < x + w && pointer.y >= y && pointer.y < y + h;
++    box(x, y, w, h, active ? '#3a2c24' : hot && !disabled ? '#2e2420' : '#211a17', active ? accent : '#54463c');
++    if (active) {
++      ctx.fillStyle = accent;
++      ctx.fillRect(x, y, 4, h);
++    }
++    panelText(label, x + 15, y + (sub ? 10 : (h - 17) / 2), 16, disabled ? '#7a7068' : active ? accent : '#f2ece2');
++    if (sub) panelText(sub, x + 15, y + 34, 12, disabled ? '#7a7068' : '#b8ac9c');
++    buttons.push({ x, y, w, h, fn, disabled });
++  }
++
++  /** A d20 badge with a number in it. */
++  function d20(x, y, r, n, fill = '#3a3350', ink = '#e7e0f7') {
++    ctx.fillStyle = fill;
++    ctx.beginPath();
++    for (let k = 0; k < 6; k++) {
++      const a = -Math.PI / 2 + (k * Math.PI) / 3;
++      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
++      if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
++    }
++    ctx.closePath();
++    ctx.fill();
++    ctx.strokeStyle = '#8d80b8';
++    ctx.lineWidth = 2;
++    ctx.stroke();
++    text(n, x, y - r * 0.42, r * 0.9, ink, 'center', 800);
++  }
++
++  // ——————————————————————————————————————— the backdrop
++
++  /** The dungeon behind the fight, in this level's stone: a brick wall, sconces, a flagstone floor. Painted once a level. */
++  function paintBackdrop(pal) {
++    const c = document.createElement('canvas');
++    c.width = W; c.height = VIEW_H;
++    const g = c.getContext('2d');
++    const wall = pal?.walls?.[0] ?? '#5e5953', floor = pal?.tiles?.[0] ?? '#8a857e';
++    const shade = (hex, k) => {
++      const n = parseInt(hex.slice(1), 16);
++      return `rgb(${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(clamp(v * k, 0, 255))).join(',')})`;
++    };
++    // The wall: courses of brick, darker toward the top.
++    g.fillStyle = shade(wall, 0.25);
++    g.fillRect(0, 0, W, 300);
++    let seed = 9;
++    const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
++    for (let row = 0; row * 26 < 300; row++) {
++      const y = row * 26, offset = (row % 2) * 34;
++      for (let x = -offset; x < W; x += 68) {
++        const k = (0.45 + 0.5 * (y / 300)) * (0.8 + rnd() * 0.35);
++        g.fillStyle = shade(wall, k);
++        g.fillRect(x + 2, y + 2, 64, 22);
++        g.fillStyle = shade(wall, k * 1.25);
++        g.fillRect(x + 2, y + 2, 64, 3);
++      }
++    }
++    // A plinth where wall meets floor.
++    g.fillStyle = shade(wall, 0.55);
++    g.fillRect(0, 286, W, 18);
++    g.fillStyle = shade(wall, 0.8);
++    g.fillRect(0, 286, W, 3);
++    // Sconces.
++    for (const x of [230, 640, 1050]) {
++      g.fillStyle = '#2c2622';
++      g.fillRect(x - 5, 150, 10, 34);
++      g.fillRect(x - 14, 140, 28, 12);
++    }
++    // The floor: flagstones going away to a point beyond the wall.
++    const vx = W / 2, vy = -120;
++    g.fillStyle = shade(floor, 0.42);
++    g.fillRect(0, 304, W, VIEW_H - 304);
++    g.strokeStyle = shade(floor, 0.22);
++    g.lineWidth = 2;
++    for (let i = 0, y = 304; y < VIEW_H; i++) {
++      const next = y + 14 + i * 9;
++      g.fillStyle = shade(floor, 0.36 + i * 0.07);
++      g.fillRect(0, y, W, next - y);
++      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
++      // Joints, staggered row by row, converging on the far point.
++      for (let k = -20; k <= 20; k++) {
++        const bx = vx + (k + (i % 2) * 0.5) * 150;
++        const x0 = vx + (bx - vx) * ((y - vy) / (VIEW_H - vy)), x1 = vx + (bx - vx) * ((next - vy) / (VIEW_H - vy));
++        g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, next); g.stroke();
++      }
++      y = next;
++    }
++    // Dark at the edges.
++    const v = g.createRadialGradient(W / 2, 260, 200, W / 2, 260, 760);
++    v.addColorStop(0, 'rgba(0,0,0,0)');
++    v.addColorStop(1, 'rgba(0,0,0,0.72)');
++    g.fillStyle = v;
++    g.fillRect(0, 0, W, VIEW_H);
++    return c;
++  }
++
++  function drawBackdrop() {
++    if (backdrop) ctx.drawImage(backdrop, 0, 0);
++    // Live flames, and the light they throw.
++    for (const [i, x] of [230, 640, 1050].entries()) {
++      const f = 1 + 0.12 * Math.sin(time * 9 + i * 2) + 0.07 * Math.sin(time * 23 + i);
++      const glow = ctx.createRadialGradient(x, 128, 4, x, 128, 170 * f);
++      glow.addColorStop(0, 'rgba(255,170,80,0.42)');
++      glow.addColorStop(1, 'rgba(255,120,40,0)');
++      ctx.fillStyle = glow;
++      ctx.fillRect(x - 200, 0, 400, 340);
++      ctx.fillStyle = '#ff8a2a';
++      ctx.beginPath();
++      ctx.ellipse(x, 128, 8 * f, 16 * f, 0, 0, Math.PI * 2);
++      ctx.fill();
++      ctx.fillStyle = '#ffe9a0';
++      ctx.beginPath();
++      ctx.ellipse(x, 133, 4, 8 * f, 0, 0, Math.PI * 2);
++      ctx.fill();
++    }
++  }
++
++  // ——————————————————————————————————————— the fighters
++
++  const partyPos = (h) => PARTY_POS[battle.heroes.indexOf(h)] ?? PARTY_POS[0];
++  const enemyPos = (e) => {
++    const n = battle.enemies.length;
++    return ENEMY_POS[n - 1][battle.enemies.indexOf(e)] ?? ENEMY_POS[0][0];
++  };
++  const posOf = (u) => (battle.heroes.includes(u) ? partyPos(u) : enemyPos(u));
++  const heightOf = (u) => canvasOf(u.id ?? u.kind, 'idle').height * SCALE;
++
++  function shadow(x, y, w, a = 0.35) {
++    ctx.save();
++    ctx.globalAlpha = a;
++    ctx.fillStyle = '#000';
++    ctx.beginPath();
++    ctx.ellipse(x, y, w, 9, 0, 0, Math.PI * 2);
++    ctx.fill();
++    ctx.restore();
++  }
++
++  /** A sprite standing with its feet at (x, y). */
++  function sprite(kind, pose, x, y, { alpha = 1, flash = 0 } = {}) {
++    const c = canvasOf(kind, pose);
++    const w = c.width * SCALE, h = c.height * SCALE;
++    ctx.save();
++    ctx.imageSmoothingEnabled = false;
++    ctx.globalAlpha = alpha;
++    ctx.drawImage(c, Math.round(x - w / 2), Math.round(y - h + 2 * SCALE), w, h);
++    if (flash > 0) {
++      ctx.globalAlpha = alpha * flash;
++      ctx.drawImage(flashOf(kind, pose), Math.round(x - w / 2), Math.round(y - h + 2 * SCALE), w, h);
++    }
++    ctx.restore();
++  }
++
++  /** Where a hero is and how they stand this frame: stepping in to strike, or back in line. */
++  function heroPose(h) {
++    const home = partyPos(h);
++    let x = home.x, pose = 'idle';
++    const a = battle.phase === 'action' && battle.action?.actor === h ? battle.action : null;
++    if (a) {
++      const t = clamp(a.t / a.duration, 0, 1);
++      const type = battle.attackType(a);
++      const melee = (h.id === 'hero' || h.id === 'warrior') && type === 'physical';
++      if (melee) {
++        const target = a.target || a.targets?.[0];
++        const dest = target && battle.enemies.includes(target) ? enemyPos(target).x - 130 : x + 90;
++        const dash = t < 0.42 ? Math.sin(((t / 0.42) * Math.PI) / 2) : t > 0.57 ? Math.cos((clamp((t - 0.57) / 0.4, 0, 1) * Math.PI) / 2) : 1;
++        x = lerp(home.x, dest, dash);
++      } else if (type !== 'none') x += Math.sin(t * Math.PI) * 14;
++      if (t > 0.17 && t < 0.85) pose = a.pose ?? 'attack';
++    }
++    if (h.hitTimer) x += Math.sin(time * 80) * 5;
++    return { x, y: home.y, pose };
++  }
++
++  function drawUnits() {
++    // Back to front, so the nearer stand over the further.
++    const units = [...battle.heroes.map((h) => ({ u: h, y: partyPos(h).y })), ...battle.enemies.map((e) => ({ u: e, y: enemyPos(e).y }))].sort((a, b) => a.y - b.y);
++    const bob = (i) => (Math.floor(time * 2 + i * 0.5) % 2) * SCALE;
++    for (const { u } of units) {
++      if (battle.heroes.includes(u)) {
++        const p = heroPose(u), i = battle.heroes.indexOf(u);
++        shadow(p.x, p.y, 34);
++        if (!u.alive) {
++          // Down: lying on the floor, faded.
++          ctx.save();
++          ctx.translate(p.x, p.y);
++          ctx.rotate(-Math.PI / 2);
++          ctx.translate(-p.x, -p.y);
++          sprite(u.id, 'idle', p.x + 30, p.y + 20, { alpha: 0.4 });
++          ctx.restore();
++          continue;
++        }
++        sprite(u.id, p.pose, p.x, p.y + (p.pose === 'idle' ? bob(i) : 0), { flash: u.hitTimer > 0.14 ? 1 : 0 });
++        if (u.guard) pill('GUARD', p.x - 34, p.y - heightOf(u) - 18, '#a3d6ff');
++        if (battle.phase === 'input' && battle.currentActor() === u) {
++          const accent = HEROES[u.id].accent;
++          diamond(p.x, p.y - heightOf(u) - 4, accent, 8);
++          ctx.strokeStyle = accent;
++          ctx.lineWidth = 2;
++          ctx.beginPath();
++          ctx.ellipse(p.x, p.y + 4, 40, 11, 0, 0, Math.PI * 2);
++          ctx.stroke();
++        }
++        if (battle.phase === 'target' && battle.pending?.targetType === 'ally' && battle.targets().includes(u)) {
++          const selected = battle.targets()[battle.targetIndex] === u;
++          const top = p.y - heightOf(u);
++          if (selected) {
++            ctx.strokeStyle = '#95deb8';
++            ctx.lineWidth = 3;
++            ctx.strokeRect(p.x - 60, top, 120, heightOf(u) + 8);
++          }
++          buttons.push({ x: p.x - 65, y: top, w: 130, h: heightOf(u) + 10, fn: () => { battle.targetIndex = battle.targets().indexOf(u); battle.confirmTarget(u); } });
++        }
++      } else {
++        const e = u, pos = enemyPos(e);
++        let x = pos.x, pose = 'idle';
++        if (battle.phase === 'enemyAction' && battle.action?.actor === e && !e.broken) {
++          const t = clamp(battle.action.t / battle.action.duration, 0, 1);
++          x -= Math.sin(t * Math.PI) * 48;
++          if (t > 0.15 && t < 0.8) pose = 'attack';
++        }
++        if (e.hitTimer) x += Math.sin(time * 80) * 5;
++        const alive = e.hp > 0;
++        const w = canvasOf(e.kind, 'idle').width * SCALE;
++        shadow(pos.x, pos.y, Math.min(110, w * 0.32), alive ? 0.35 : 0.1);
++        const lift = e.kind === 'bat' || e.kind === 'wraith' ? 40 + Math.sin(time * 3 + e.i) * 6 : 0;
++        if (alive) sprite(e.kind, pose, x, pos.y - lift + (pose === 'idle' && e.kind !== 'bat' ? bob(e.i + 1) : 0), { flash: e.hitTimer > 0.14 ? 1 : 0 });
++        else sprite(e.kind, 'idle', x, pos.y - lift, { alpha: Math.max(0, e.fade ?? 0) });
++        if (!alive) continue;
++        box(pos.x - 86, pos.y + 12, 172, 46, '#120e0ddd', '#5a4a40');
++        panelText(`${e.label}${e.analyzed ? '' : ''}`, pos.x, pos.y + 18, 13, '#f2ece2', 'center');
++        bar(pos.x - 72, pos.y + 39, 144, 7, e.hp, e.maxHp, '#e08a72');
++        const top = pos.y - lift - heightOf(e) + 2 * SCALE;
++        const intent = e.broken ? 'BREAK · loses turn' : e.intent?.label || '';
++        const iy = Math.max(84, top - 30);
++        box(pos.x - 110, iy, 220, 23, '#120e0de6', e.broken ? '#7fdaeb' : e.intent?.kind === 'sweep' ? '#f8ce76' : '#6a5a4e');
++        panelText(intent, pos.x, iy + 5, 11, e.broken ? '#7fdaeb' : '#f3dfb4', 'center');
++        if ((battle.phase === 'target' && battle.pending?.targetType === 'enemy') || battle.phase === 'analyze') {
++          const selected = battle.aliveEnemies()[battle.targetIndex] === e;
++          const h = heightOf(e);
++          if (selected) {
++            ctx.strokeStyle = '#f8ce76';
++            ctx.lineWidth = 3;
++            ctx.strokeRect(pos.x - w * 0.42, top - 6, w * 0.84, h + 70);
++          }
++          buttons.push({
++            x: pos.x - w * 0.45, y: top - 6, w: w * 0.9, h: h + 72,
++            fn: () => { battle.targetIndex = battle.aliveEnemies().indexOf(e); battle.input('enter'); },
++          });
++        }
++      }
++    }
++  }
++
++  function pill(s, x, y, color) {
++    const w = String(s).length * 9 + 20;
++    box(x, y, w, 23, '#1a1412', color);
++    panelText(s, x + 10, y + 4, 12, color);
++  }
++
++  // ——————————————————————————————————————— effects
++
++  const COLOURS = {
++    hit: ['#ffffff', '#ffe9a0', '#ffd27a'],
++    claw: ['#ff6a5a', '#ffb0a0', '#ffffff'],
++    magic: ['#9ff2ff', '#b7a0f4', '#ffffff'],
++    hybrid: ['#fff2a0', '#ffd23a', '#ffffff'],
++    heal: ['#7dff9f', '#c8ffd8', '#ffffff'],
++    buff: ['#f8ce76', '#fff2c0'],
++  };
++
++  function burst(kind, x, y) {
++    const cols = COLOURS[kind] ?? COLOURS.hit;
++    const n = kind === 'magic' || kind === 'hybrid' ? 24 : kind === 'heal' || kind === 'buff' ? 12 : 16;
++    for (let i = 0; i < n; i++) {
++      const up = kind === 'heal' || kind === 'buff';
++      particles.push({
++        x: x + (up ? (Math.random() - 0.5) * 70 : 0), y: y + (up ? Math.random() * 40 : 0),
++        vx: up ? (Math.random() - 0.5) * 20 : (Math.random() - 0.5) * 360, vy: up ? -60 - Math.random() * 70 : -Math.random() * 260 + 40,
++        life: 0.45 + Math.random() * 0.4, colour: cols[i % cols.length], size: 3 + Math.floor(Math.random() * 3) * 3, kind,
++      });
++    }
++    flashes.push({ kind, x, y, t: 0, life: kind === 'hit' || kind === 'claw' ? 0.25 : 0.4 });
++  }
++
++  /** What the battle said happened since last frame: numbers, sparks, shakes, sounds. */
++  function takeEvents() {
++    for (const ev of battle.events.splice(0)) {
++      if (ev.type === 'floater') {
++        const p = posOf(ev.who);
++        floaters.push({ x: p.x, y: p.y - heightOf(ev.who) * 0.7, text: ev.text, color: ev.color, life: 0.9 });
++      } else if (ev.type === 'fx') {
++        const p = posOf(ev.who);
++        burst(ev.kind, p.x, p.y - heightOf(ev.who) * 0.5);
++      } else if (ev.type === 'shake') shake = Math.max(shake, ev.size);
++      else if (ev.type === 'sfx') audio.sfx(ev.name);
++    }
++  }
++
++  function drawEffects() {
++    // A bolt from a caster's staff to whoever it is meant for, on the way to the hit.
++    const a = battle.action;
++    if (battle.phase === 'action' && a && a.t > 0.12 && a.t < 0.36) {
++      const type = battle.attackType(a);
++      const caster = a.actor.id === 'mage' || a.actor.id === 'healer';
++      if (caster && type !== 'none') {
++        const from = partyPos(a.actor);
++        const t = clamp((a.t - 0.12) / 0.24, 0, 1);
++        for (const target of (a.target ? [a.target] : a.targets || []).filter((e) => battle.enemies.includes(e))) {
++          const to = enemyPos(target);
++          const x = lerp(from.x + 50, to.x, t), y = lerp(from.y - 110, to.y - heightOf(target) * 0.5, t);
++          const glow = ctx.createRadialGradient(x, y, 2, x, y, 26);
++          glow.addColorStop(0, '#ffffff');
++          glow.addColorStop(0.3, a.actor.id === 'mage' ? '#8ff0ff' : '#ffe27a');
++          glow.addColorStop(1, 'rgba(0,0,0,0)');
++          ctx.fillStyle = glow;
++          ctx.fillRect(x - 26, y - 26, 52, 52);
++        }
++      }
++    }
++    for (const f of flashes) {
++      const k = 1 - f.t / f.life;
++      ctx.save();
++      ctx.globalAlpha = k;
++      ctx.strokeStyle = (COLOURS[f.kind] ?? COLOURS.hit)[0];
++      ctx.lineWidth = 6 * k + 1;
++      if (f.kind === 'hit') {
++        ctx.beginPath();
++        ctx.arc(f.x - 20, f.y + 10, 46, -1.2, 0.4);
++        ctx.stroke();
++      } else if (f.kind === 'claw') {
++        for (let i = -1; i <= 1; i++) {
++          ctx.beginPath();
++          ctx.moveTo(f.x - 26 + i * 14, f.y - 30);
++          ctx.lineTo(f.x + 16 + i * 14, f.y + 30);
++          ctx.stroke();
++        }
++      } else {
++        ctx.beginPath();
++        ctx.arc(f.x, f.y, 14 + (1 - k) * 60, 0, Math.PI * 2);
++        ctx.stroke();
++      }
++      ctx.restore();
++    }
++    for (const p of particles) {
++      ctx.globalAlpha = clamp(p.life / 0.4, 0, 1);
++      ctx.fillStyle = p.colour;
++      if (p.kind === 'heal') {
++        ctx.fillRect(p.x - p.size / 2, p.y - 1, p.size, 3);
++        ctx.fillRect(p.x - 1, p.y - p.size / 2, 3, p.size);
++      } else ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
++    }
++    ctx.globalAlpha = 1;
++    for (const f of floaters) {
++      ctx.globalAlpha = clamp(f.life / 0.9, 0, 1);
++      ctx.font = `800 22px ${FONT}`;
++      ctx.textAlign = 'center';
++      ctx.textBaseline = 'top';
++      ctx.lineWidth = 5;
++      ctx.strokeStyle = '#0b0806';
++      ctx.strokeText(f.text, f.x, f.y);
++      ctx.fillStyle = f.color;
++      ctx.fillText(f.text, f.x, f.y);
++    }
++    ctx.globalAlpha = 1;
++  }
++
++  function stepEffects(dt) {
++    for (const p of particles) {
++      p.x += p.vx * dt; p.y += p.vy * dt;
++      if (p.kind !== 'heal' && p.kind !== 'buff') p.vy += 420 * dt;
++      p.life -= dt;
++    }
++    particles = particles.filter((p) => p.life > 0);
++    for (const f of flashes) f.t += dt;
++    flashes = flashes.filter((f) => f.t < f.life);
++    for (const f of floaters) { f.y -= 42 * dt; f.life -= dt; }
++    floaters = floaters.filter((f) => f.life > 0);
++    for (const e of battle.enemies) if (e.hp <= 0) e.fade = (e.fade ?? 1) - dt * 2;
++    shake = Math.max(0, shake - dt * 18);
++    void projectiles;
++  }
++
++  // ——————————————————————————————————————— the panels
++
++  function drawOpening() {
++    if (battle.phase !== 'intro' && !(battle.round === 1 && battle.phase === 'enemyAction' && battle.enemyIndex === 0)) return;
++    const o = OPENINGS[battle.opening];
++    const fade = battle.phase === 'intro' ? 1 : 0.85;
++    ctx.save();
++    ctx.globalAlpha = fade;
++    ctx.fillStyle = 'rgba(8,6,5,0.7)';
++    ctx.fillRect(330, 150, 620, 170);
++    ctx.strokeStyle = '#8d80b8';
++    ctx.strokeRect(330.5, 150.5, 619, 169);
++    const crit = battle.opening === 'critical', fumble = battle.opening === 'fumble';
++    d20(410, 235, 58, battle.roll, crit ? '#5a4520' : fumble ? '#4a1f22' : '#3a3350', crit ? '#ffd479' : fumble ? '#ff7a5c' : '#e7e0f7');
++    text(o.title, 500, 178, 30, crit ? '#ffd479' : fumble ? '#ff7a5c' : battle.opening === 'advantage' ? '#9fe08a' : '#f2b45c', 'left', 800);
++    panelText(`ROLLED ${battle.roll} vs DC ${battle.dc}`, 500, 220, 15, UI_MUTED);
++    wrap(o.line, 500, 248, 420, 14, UI_INK, 3);
++    ctx.restore();
++  }
++
++  function drawPartyPanel() {
++    box(0, VIEW_H, W, H - VIEW_H, '#16110f', '#4a3e36');
++    panelText('PARTY', 23, 486, 12, UI_MUTED);
++    panelText('ACTION', 752, 486, 12, UI_MUTED);
++    battle.heroes.forEach((h, i) => {
++      const x = 18, y = 509 + i * 47;
++      const active = battle.currentActor() === h && ['input', 'skills', 'items', 'target', 'analyze'].includes(battle.phase);
++      const accent = HEROES[h.id].accent;
++      box(x, y, 704, 43, active ? '#2e2420' : '#1e1815', active ? accent : '#3e342e');
++      ctx.imageSmoothingEnabled = false;
++      ctx.globalAlpha = h.alive ? 1 : 0.4;
++      ctx.drawImage(portrait(h.id, 2), 23, y + 3, 37, 37);
++      ctx.globalAlpha = 1;
++      panelText(h.label, 68, y + 5, 13, h.alive ? accent : '#7b7068');
++      panelText(`LV ${h.lvl}`, 68, y + 24, 10, UI_MUTED);
++      panelText(`HP ${h.hp}/${h.maxHp}`, 187, y + 5, 11, '#d8e4cf');
++      bar(187, y + 27, 145, 6, h.hp, h.maxHp, h.hp / h.maxHp < 0.3 ? '#e08a5a' : '#8fd08a');
++      panelText(`MP ${h.mp}/${h.maxMp}`, 352, y + 5, 11, '#c8d4e4');
++      bar(352, y + 27, 113, 6, h.mp, h.maxMp, '#7fb0e0');
++      panelText(h.limit >= 100 ? 'LIMIT READY' : `LIMIT ${h.limit}%`, 489, y + 5, 11, h.limit >= 100 ? '#ffd479' : '#d4b4d4');
++      bar(489, y + 27, 108, 6, h.limit, 100, '#c896c4');
++      wrap(h.alive ? statusText(h) : 'DOWN', 617, y + 6, 96, 10, h.alive ? '#c4d4dc' : '#e08a72', 2);
++    });
++    drawCommands();
++  }
++
++  function drawCommands() {
++    const h = battle.currentActor(), phase = battle.phase, x = 748;
++    if (phase === 'input' || phase === 'intro') {
++      const cmds = [HEROES[h.id].basic.name, 'Skills', 'Items', 'Defend', 'Analyze', 'Run'];
++      cmds.forEach((s, i) => button(`${i + 1} · ${s}`, x + (i % 2) * 256, 510 + Math.floor(i / 2) * 53, 244, 44,
++        () => { battle.menuIndex = i; battle.input('enter'); },
++        { active: phase === 'input' && battle.menuIndex === i, disabled: phase === 'intro' || (i === 5 && battle.boss), accent: HEROES[h.id].accent }));
++      panelText('Weakness × 2 = BREAK · Skills build LIMIT', x, 683, 12, UI_MUTED);
++    } else if (phase === 'skills') {
++      const list = battle.skillsFor(h);
++      list.forEach((s, i) => button(s.name + (s.limit ? ' ★' : ` · ${s.cost}`), x + (i % 2) * 256, 509 + Math.floor(i / 2) * 51, 244, 45,
++        () => { battle.subIndex = i; battle.chooseSkill(s); },
++        { active: battle.subIndex === i, disabled: !s.limit && h.mp < s.cost, accent: HEROES[h.id].accent }));
++      const s = list[battle.subIndex];
++      wrap(`${s?.limit ? 'LIMIT' : `${s?.cost ?? 0} MP`} · ${s?.desc ?? ''}`, x, 672, 488, 11, UI_MUTED, 2);
++    } else if (phase === 'items') {
++      const list = battle.items();
++      list.forEach(([k, n], i) => button(`${ITEMS[k].name} ×${n}`, x + (i % 2) * 256, 510 + Math.floor(i / 2) * 53, 244, 44,
++        () => { battle.subIndex = i; battle.chooseItem(k); }, { active: battle.subIndex === i }));
++      panelText(ITEMS[list[battle.subIndex]?.[0]]?.desc ?? '', x, 683, 13, UI_MUTED);
++    } else if (phase === 'target') {
++      const ts = battle.targets(), t = ts[battle.targetIndex];
++      text(`CHOOSE ${battle.pending.targetType === 'enemy' ? 'AN ENEMY' : 'AN ALLY'}`, x, 517, 21, '#f8ce76');
++      panelText(t?.label ?? '', x, 554, 19, '#f3f4f7');
++      if (battle.pending.targetType === 'enemy' && t) {
++        panelText(`${t.analyzed ? `Weak: ${t.weak.toUpperCase()} · ` : ''}${t.resolveTurns ? 'RESOLVE: can\'t break' : `Break ${t.breakPoints || 0}/2`}`, x, 585, 14, '#90d5e9');
++      } else if (t) panelText(`HP ${t.hp}/${t.maxHp} · MP ${t.mp}/${t.maxMp}`, x, 585, 14, '#96d5aa');
++      button('← Previous', x, 620, 152, 44, () => battle.input('arrowleft'));
++      button('Confirm', x + 162, 620, 164, 44, () => battle.input('enter'), { active: true });
++      button('Next →', x + 336, 620, 152, 44, () => battle.input('arrowright'));
++      panelText('Click someone to choose them · Esc to go back', x, 683, 12, UI_MUTED);
++    } else if (phase === 'analyze') {
++      const e = battle.aliveEnemies()[battle.targetIndex];
++      text(`ANALYZE · ${e.label}`, x, 517, 20, '#f8ce76');
++      panelText(e.trait, x, 552, 15, '#d8ccbc');
++      wrap('Learn its weakness and leave it vulnerable for two rounds. Uses this hero\'s move.', x, 584, 480, 14, UI_MUTED, 2);
++      button('Analyze', x, 640, 488, 42, () => battle.input('enter'), { active: true });
++    } else if (phase === 'defeat') {
++      text('THE PARTY HAS FALLEN', x, 518, 22, '#efac9b');
++      wrap(`Try the fight again as you were when it started — it costs ${retryCost()} gold — or end the delve here.`, x, 556, 488, 15, UI_MUTED, 3);
++      button(`Retry · −${retryCost()} gold`, x, 650, 235, 49, () => finish('retry'), { active: true });
++      button('Give up', x + 253, 650, 235, 49, () => finish('fallen'));
++    } else {
++      text(phase === 'enemyAction' ? 'ENEMY TURN' : phase === 'fled' ? 'AWAY!' : phase === 'message' ? 'RESOLVED' : 'IN MOTION', x, 531, 22, phase === 'enemyAction' ? '#efac9b' : '#f8ce76');
++      wrap(battle.message, x, 578, 480, 16, UI_MUTED, 4);
++      if (phase === 'message' && !battle.pending?.advanceAfterMessage) button('Continue', x, 658, 488, 41, () => battle.input('enter'));
++    }
++  }
++
++  function drawResult() {
++    const r = battle.result;
++    box(0, VIEW_H, W, H - VIEW_H, '#1c1612', '#7a6a50');
++    text('VICTORY', 23, 486, 21, UI_GOLD);
++    panelText(`+${r.xp} XP each    +${r.gold} GOLD    ${r.rounds} ROUNDS    ${r.breaks} BREAKS`, 1258, 489, 12, UI_INK, 'right');
++    battle.heroes.forEach((h, i) => {
++      const x = 18 + i * 312, gain = r.gains.find((g) => g.id === h.id);
++      box(x, 524, 300, 130, gain ? '#3a3020' : '#221b17', gain ? UI_GOLD : '#4e4038');
++      ctx.imageSmoothingEnabled = false;
++      ctx.drawImage(portrait(h.id, 2), x + 12, 539, 48, 48);
++      panelText(h.label, x + 72, 539, 14, HEROES[h.id].accent);
++      panelText(gain ? `LEVEL UP ${gain.from} → ${gain.to}` : `LEVEL ${h.lvl}`, x + 72, 565, 15, gain ? UI_GOLD : UI_INK);
++      panelText(gain ? 'HP and MP full' : `${h.xp} / ${xpRequired(h.lvl)} XP`, x + 14, 605, 11, UI_MUTED);
++      bar(x + 14, 635, 271, 6, h.xp, xpRequired(h.lvl) || 1, UI_GOLD);
++    });
++    panelText('After a win: 12% HP and 10% MP back.', 23, 682, 12, UI_MUTED);
++    button('Continue →', 1062, 671, 200, 36, () => finish('won'), { active: true });
++  }
++
++  function drawTop() {
++    box(15, 12, 1250, 60, '#1a1412', '#6a5a4e');
++    panelText(`ROUND ${battle.round}`, 31, 26, 12, UI_GOLD);
++    wrap(battle.message, 139, 22, 1102, 15, UI_INK, 2);
++    button(`B · ${AUTO_MODES[battle.settings.autoMode]}`, 18, 82, 216, 39, () => battle.cycleAuto(), { active: battle.settings.autoMode > 0 });
++    button(`V · ${battle.settings.battleSpeed}×`, 246, 82, 114, 39, () => { battle.settings.battleSpeed = (battle.settings.battleSpeed % 3) + 1; });
++    if (battle.settings.autoMode) panelText('Esc · back to manual', 18, 131, 11, UI_GOLD);
++  }
++
++  // ——————————————————————————————————————— open and close
++
++  let goldNow = 0;
++  const retryCost = () => Math.floor(goldNow / 4);
++
++  function finish(how) {
++    if (!battle || battle.done) return;
++    battle.finish(how);
++  }
++
++  function close() {
++    shell.hidden = true;
++    const r = resolve, done = battle.done;
++    battle = null;
++    resolve = null;
++    r?.(done);
++  }
++
++  addEventListener('keydown', (e) => {
++    if (!battle) return;
++    const k = e.key.toLowerCase();
++    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'enter', 'escape', 'tab'].includes(k)) e.preventDefault();
++    e.stopImmediatePropagation();
++    if (e.repeat && !k.startsWith('arrow')) return;
++    if (battle.phase === 'defeat') {
++      if (k === 'enter' || k === ' ') finish('retry');
++      return;
++    }
++    if (battle.phase === 'victory' && (k === 'enter' || k === ' ')) { finish('won'); return; }
++    battle.input(k);
++  }, { capture: true });
++  const toCanvas = (e) => {
++    const r = canvas.getBoundingClientRect();
++    return [((e.clientX - r.left) * W) / r.width, ((e.clientY - r.top) * H) / r.height];
++  };
++  canvas.addEventListener('pointermove', (e) => { [pointer.x, pointer.y] = toCanvas(e); });
++  canvas.addEventListener('pointerleave', () => { pointer.x = pointer.y = -1; });
++  canvas.addEventListener('pointerdown', (e) => {
++    e.preventDefault();
++    e.stopPropagation();
++    audio.wake();
++    const [x, y] = toCanvas(e);
++    const b = [...buttons].reverse().find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
++    if (b && !b.disabled) b.fn();
++  });
++
++  return {
++    get open() { return battle !== null; },
++
++    /** Show `b` until it is over; resolves with how it ended (`b.done`). `palette` is the level's, for the backdrop. */
++    show(b, { palette: pal, gold = 0 } = {}) {
++      battle = b;
++      goldNow = gold;
++      if (pal !== palette || !backdrop) { palette = pal; backdrop = paintBackdrop(pal); }
++      particles = []; floaters = []; flashes = []; projectiles = [];
++      shake = 0;
++      shell.hidden = false;
++      canvas.focus({ preventScroll: true });
++      return new Promise((r) => { resolve = r; });
++    },
++
++    /** A key from elsewhere (the gamepad): 'enter', 'escape', arrows. */
++    key(k) { if (battle) battle.input(k); },
++
++    update(dt) {
++      if (!battle) return;
++      time += dt;
++      battle.update(dt);
++      takeEvents();
++      stepEffects(dt);
++      if (battle.done) close();
++    },
++
++    draw() {
++      if (!battle) return;
++      buttons = [];
++      ctx.save();
++      const sx = shake ? (Math.random() - 0.5) * shake * 2 : 0, sy = shake ? (Math.random() - 0.5) * shake * 2 : 0;
++      ctx.translate(sx, sy);
++      ctx.beginPath();
++      ctx.rect(0, 0, W, VIEW_H);
++      ctx.clip();
++      drawBackdrop();
++      drawUnits();
++      drawEffects();
++      drawOpening();
++      ctx.restore();
++      if (battle.phase === 'victory') drawResult();
++      else drawPartyPanel();
++      drawTop();
++    },
++  };
++}
+diff --git a/src/delve.js b/src/delve.js
+index 294446d..e6f9e83 100644
+--- a/src/delve.js
++++ b/src/delve.js
+@@ -21,11 +21,11 @@ export const GRIP = Object.freeze({ below: 1.6, rate: 7 });
+ 
+ /** What each way of coming to grief costs the party, in hit points spread over them. */
+ export const HARM = Object.freeze({
+-  fell: 6,
+-  burnt: 10,
+-  crushed: 9,
+-  spiked: 5,
+-  thud: 3,
++  fell: 24,
++  burnt: 40,
++  crushed: 36,
++  spiked: 20,
++  thud: 12,
+ });
+ 
+ /** A push on the screen (x right, y up) as a push along the ground, for a camera turned to `yaw`. */
+diff --git a/src/game.js b/src/game.js
+index 24e37ef..e42d059 100644
+--- a/src/game.js
++++ b/src/game.js
+@@ -1,17 +1,21 @@
+-import { createBattleScreen, resolveBattle } from './battle.js';
++import { encounter, foeLevel, ITEMS } from './battle/data.js';
++import { Battle } from './battle/engine.js';
++import { createBattleScreen } from './battle/screen.js';
+ import { DIE_SCALE, dieModel, reachBelow, showNumber } from './die.js';
+ import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from './delve.js';
+ import { createEffects } from './effects.js';
+ import { LEVELS } from './levels.js';
+-import { createParty, heal, hurt, rest, seeded, wiped } from './party.js';
++import { MONSTERS } from './monsters.js';
++import { createParty, hurt, loot, restore, rest, seeded, snapshot, wiped } from './party.js';
+ import { turn } from './physics.js';
+ import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
+ 
+ /**
+  * The game: the levels one after another, down and down, with one party.
+- * The party's hit points carry from level to level — a rest at each stair
+- * gets half of them back — and so does the gold. Run into a monster and the
+- * number on top of the die is the roll the party fights with (`battle.js`).
++ * The party's levels, hit points, MP and items carry from level to level —
++ * a rest at each stair gets half the HP and MP back — and so does the gold.
++ * Run into a monster and the fight is on (`battle/`): the number on top of
++ * the die as it hit decides who gets the jump.
+  * Fall off, burn or get squashed and the party is hurt and the die put back
+  * on the last safe floor it crossed; lose all four heroes and it's over.
+  */
+@@ -40,7 +44,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
+   dieMesh.scale.setScalar(DIE_SCALE);
+   dieMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+   scene.add(dieMesh);
+-  const battle = createBattleScreen(document.body);
++  const screen = createBattleScreen({ audio });
+ 
+   let delve = null;
+   let group = null;
+@@ -138,33 +142,58 @@ export function createGame({ stage, hud, input, audio, storage }) {
+     else audio.fall();
+   }
+ 
+-  function fight(mob, roll) {
++  /** A fight with the monster `mob`, the die having rolled `roll` as it hit. */
++  async function fight(mob, roll) {
+     const b = delve.ball;
+     b.vx = b.vy = b.vz = 0;
+     showNumber(delve.die, model, roll);
+     enter('battle');
+     playZoom = view.aim.zoom;
+     view.aim.zoom = FIGHT_ZOOM;
+-    const result = resolveBattle({ roll, monster: mob.stats });
+-    const before = party.heroes.map((h) => h.hp);
+-    const took = hurt(party, result.damage, random);
+-    const after = party.heroes.map((h) => h.hp);
+-    gold += result.gold;
+-    audio.stopMusic();
+-    audio.battle(result.grade);
+     hud.banner(null);
+-    battle.show({ monster: mob.stats, result, before, after }).then(() => {
+-      delve.actors.defeat(mob);
+-      effects.poof(mob.x, mob.y, mob.z, mob.stats.boss ? 2.5 : 1);
+-      effects.coins(mob.x, mob.y, mob.z, Math.min(30, 6 + result.gold / 4));
+-      audio.coin();
+-      hud.party(party, took);
+-      hud.gold(gold);
++    audio.stopMusic();
++    audio.encounter();
++    const depth = delve.level.depth;
++    const before = snapshot(party);
++    for (;;) {
++      const battle = new Battle({
++        party, foes: encounter(mob.kind, depth), level: foeLevel(depth), roll, dc: MONSTERS[mob.kind].dc,
++        settings: { ...saved.settings }, random, label: mob.stats.boss ? 'BOSS' : `DEPTH ${depth}`,
++      });
++      audio.battleMusic(true);
++      const done = await screen.show(battle, { palette: delve.level.palette, gold });
++      audio.battleMusic(false);
++      saved = storage.settings({ autoMode: battle.settings.autoMode, battleSpeed: battle.settings.battleSpeed });
++      if (done.how === 'retry') {
++        gold -= Math.floor(gold / 4);
++        hud.gold(gold);
++        restore(party, before);
++        continue;
++      }
+       view.aim.zoom = playZoom;
+-      if (wiped(party)) return gameOver();
++      if (done.how === 'fallen') { hud.party(party); return gameOver(); }
++      if (done.how === 'fled') {
++        // Away, with the monster left behind for a moment to collect itself.
++        mob.calm = 3;
++        const dx = b.x - mob.x, dz = b.z - mob.z, d = Math.hypot(dx, dz) || 1;
++        b.vx = (dx / d) * 5;
++        b.vz = (dz / d) * 5;
++        hud.banner('GOT AWAY!');
++      } else {
++        const won = done.result;
++        gold += won.gold;
++        delve.actors.defeat(mob);
++        effects.poof(mob.x, mob.y, mob.z, mob.stats.boss ? 2.5 : 1);
++        effects.coins(mob.x, mob.y, mob.z, Math.min(30, 6 + won.gold / 4));
++        audio.coin();
++        if (won.gains.length) hud.banner(`LEVEL UP!\n${won.gains.map((g) => g.id.toUpperCase()).join(' · ')}`);
++      }
++      hud.party(party);
++      hud.gold(gold);
+       enter('play');
+-      audio.startMusic(delve.level.depth);
+-    });
++      audio.startMusic(depth);
++      return;
++    }
+   }
+ 
+   function finish() {
+@@ -215,17 +244,19 @@ export function createGame({ stage, hud, input, audio, storage }) {
+     }
+     for (const p of out.picked) {
+       if (p.kind === 'gold' || p.kind === 'chest') {
+-        gold += p.amount;
++        const got = loot(party, p);
++        gold += got.gold;
+         hud.gold(gold);
++        hud.party(party);
+         effects.coins(p.x, p.y, p.z, p.kind === 'chest' ? 22 : 8);
+         audio.coin();
+-        if (p.kind === 'chest') hud.banner(`TREASURE!\n+${p.amount} GOLD`);
++        if (p.kind === 'chest') hud.banner(`TREASURE!\n+${got.gold} GOLD · ${ITEMS[got.item].name.toUpperCase()}`);
+       } else if (p.kind === 'potion') {
+-        const got = heal(party, p.amount);
+-        hud.party(party, got.map((g) => -g));
++        loot(party, p);
++        hud.party(party);
+         effects.sparkle(p.x, p.y, p.z, '#ff5a7a');
+         audio.potion();
+-        hud.banner(`HEALING POTION\n+${p.amount} HP EACH`);
++        hud.banner('A POTION\ninto the bag');
+       } else if (p.kind === 'key') {
+         hud.keys(delve.keys);
+         effects.sparkle(p.x, p.y, p.z, '#ffd23a');
+@@ -257,7 +288,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
+         view.reset();
+         if (state === 'title') view.aim.zoom = TITLE_ZOOM;
+       }
+-      if (state === 'battle' && (p === 'start' || p === 'tap') && timer > 0.4) battle.proceed();
++      if (state === 'battle') { if (p === 'start') screen.key('enter'); continue; }
+       if (p === 'pause' && (state === 'play' || state === 'ready' || state === 'lost')) {
+         paused = !paused;
+         hud.paused(paused);
+@@ -270,6 +301,11 @@ export function createGame({ stage, hud, input, audio, storage }) {
+       audio.rolling(0, false);
+       return;
+     }
++    if (state === 'battle') {
++      screen.update(dt);
++      screen.draw();
++      audio.rolling(0, false);
++    }
+ 
+     timer += dt;
+     if (state !== 'battle') {
+@@ -358,6 +394,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
+     get ball() { return delve.ball; },
+     get party() { return party; },
+     get state() { return state; },
++    screen,
+     /** Straight to level `index`, for looking round. */
+     level(index) { startRun(index); },
+   };
+@@ -369,6 +406,8 @@ export function createGame({ stage, hud, input, audio, storage }) {
+     startRun,
+     get state() { return state; },
+     get paused() { return paused; },
++    /** Whether the battle screen is over the whole of the view. */
++    get covered() { return screen.open; },
+     /** Where the die is on the screen, in CSS pixels, for the pointer controls. */
+     dieOnScreen(rect) {
+       const b = delve.ball;
+diff --git a/src/hud.js b/src/hud.js
+index b504a93..4029d6b 100644
+--- a/src/hud.js
++++ b/src/hud.js
+@@ -1,5 +1,5 @@
+ import { LEVELS } from './levels.js';
+-import { HEROES } from './party.js';
++import { HEROES, ITEMS, PARTY_ORDER } from './battle/data.js';
+ 
+ /**
+  * Everything on screen that isn't the 3D view: the level, the gold and the
+@@ -35,13 +35,22 @@ export function createHud(root, { onStart }) {
+     muteEl.dispatchEvent(new CustomEvent('mute', { bubbles: true }));
+   });
+ 
+-  const rows = HEROES.map((h) => {
++  const rows = PARTY_ORDER.map((id) => {
++    const h = HEROES[id];
+     const li = document.createElement('li');
+-    li.innerHTML = `<b style="--hero:${h.colour}">${h.mark}</b><span class="name">${h.name}</span>`
+-      + '<span class="bar"><i></i></span><span class="hp"></span><span class="hit"></span>';
++    li.style.setProperty('--hero', h.accent);
++    li.innerHTML = '<span class="face"></span><span class="name"></span><span class="lv"></span>'
++      + '<span class="bars"><span class="bar hp"><i></i></span><span class="bar mp"><i></i></span></span><span class="hp"></span><span class="hit"></span>';
++    li.querySelector('.name').textContent = h.label;
+     partyEl.appendChild(li);
+-    return { li, bar: li.querySelector('i'), hp: li.querySelector('.hp'), hit: li.querySelector('.hit') };
++    return {
++      li, lv: li.querySelector('.lv'), hpBar: li.querySelector('.bar.hp i'), mpBar: li.querySelector('.bar.mp i'),
++      hp: li.querySelector('span.hp'), hit: li.querySelector('.hit'),
++    };
+   });
++  const bag = document.createElement('li');
++  bag.className = 'bag';
++  partyEl.appendChild(bag);
+ 
+   /** The map: every tile seen so far, the die, the monsters near it and the stairs once found. */
+   function drawMap(delve) {
+@@ -121,13 +130,15 @@ export function createHud(root, { onStart }) {
+       keysEl.parentElement.classList.toggle('none', n === 0);
+     },
+ 
+-    /** The party's hit points; `took`, if given, flashes what each hero just lost (or, negative, gained). */
++    /** The party: levels, HP and MP, and the bag. `took`, if given, flashes what each hero just lost (or, negative, gained). */
+     party(party, took = null) {
+       party.heroes.forEach((h, i) => {
+         const r = rows[i];
+-        r.bar.style.width = `${(100 * Math.max(0, h.hp)) / h.max}%`;
+-        r.bar.classList.toggle('low', h.hp > 0 && h.hp <= h.max * 0.3);
+-        r.hp.textContent = `${Math.max(0, h.hp)}/${h.max}`;
++        r.lv.textContent = `LV ${h.lvl}`;
++        r.hpBar.style.width = `${(100 * Math.max(0, h.hp)) / h.maxHp}%`;
++        r.hpBar.classList.toggle('low', h.hp > 0 && h.hp <= h.maxHp * 0.3);
++        r.mpBar.style.width = `${(100 * Math.max(0, h.mp)) / h.maxMp}%`;
++        r.hp.textContent = `${Math.max(0, h.hp)}/${h.maxHp}`;
+         r.li.classList.toggle('down', h.hp <= 0);
+         const t = took?.[i] ?? 0;
+         if (t !== 0) {
+@@ -137,6 +148,7 @@ export function createHud(root, { onStart }) {
+           r.hit.classList.add('show');
+         }
+       });
++      bag.textContent = Object.entries(party.inventory).filter(([, n]) => n > 0).map(([k, n]) => `${ITEMS[k].name} ×${n}`).join(' · ') || 'the bag is empty';
+     },
+ 
+     /** The number on top of the die. */
+diff --git a/src/main.js b/src/main.js
+index e803498..7de3e12 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -37,6 +37,7 @@ try {
+     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+     last = now;
+     game.update(dt, input.take());
++    if (game.covered) return;
+     stage.look();
+     stage.render();
+   });
+diff --git a/src/party.js b/src/party.js
+index 3d4ed31..06c2f6f 100644
+--- a/src/party.js
++++ b/src/party.js
+@@ -1,21 +1,17 @@
++import { HEROES, PARTY_ORDER, START_ITEMS, xpRequired } from './battle/data.js';
++
+ /**
+- * The party: four heroes rolling along inside the die. Each has hit points,
+- * and a weight for how much of any harm comes their way — the knight stands
+- * in front and takes the most, the mage hangs back. When every one of them
+- * is down, the delve is over.
++ * The party: the Hero, the Warrior, the Mage and the Healer, rolling along
++ * inside the die. Each has a level, experience, hit points, MP and a LIMIT
++ * gauge, all kept from fight to fight and floor to floor; the party shares
++ * one bag of items.
+  *
+- * Harm is dealt a point at a time to a living hero picked by weight, from
+- * whatever random source is passed in, so the tests can deal it the same way
+- * every time.
++ * Outside a fight, harm — a fall, the spikes, the lava — is dealt a point at
++ * a time to a hero still standing, the front of the line most often, from
++ * whatever random source is passed in, so the tests deal it the same way
++ * every time. When every hero is down, the delve is over.
+  */
+ 
+-export const HEROES = Object.freeze([
+-  { id: 'knight', name: 'Knight', hp: 30, weight: 3, colour: '#c9d3e6', mark: 'K' },
+-  { id: 'rogue', name: 'Rogue', hp: 22, weight: 2, colour: '#9fd48a', mark: 'R' },
+-  { id: 'cleric', name: 'Cleric', hp: 24, weight: 2, colour: '#f2d27a', mark: 'C' },
+-  { id: 'mage', name: 'Mage', hp: 18, weight: 1, colour: '#b9a2f0', mark: 'M' },
+-]);
+-
+ /** A seeded random source, 0 to 1 (mulberry32). */
+ export function seeded(seed = 1) {
+   let a = seed >>> 0;
+@@ -28,8 +24,35 @@ export function seeded(seed = 1) {
+   };
+ }
+ 
+-export function createParty() {
+-  return { heroes: HEROES.map((h) => ({ id: h.id, name: h.name, hp: h.hp, max: h.hp, weight: h.weight })) };
++/** How much of the harm outside a fight comes to each hero, front to back. */
++const EXPOSURE = { hero: 3, warrior: 3, mage: 1, healer: 2 };
++
++/** A hero's stats at their level: capitol-quest's growth, six HP and two MP a level. */
++export function rebuild(h) {
++  const d = HEROES[h.id], levels = h.lvl - 1;
++  const martial = h.id === 'hero' || h.id === 'warrior';
++  const oldHp = h.maxHp ?? 0, oldMp = h.maxMp ?? 0;
++  h.maxHp = d.maxHp + levels * 6;
++  h.maxMp = d.maxMp + levels * 2;
++  h.atk = d.atk + levels + (martial ? Math.floor(levels / 2) : 0);
++  h.mag = d.mag + levels + (martial ? 0 : Math.floor(levels / 2));
++  h.def = d.def + Math.floor(h.lvl / 2);
++  h.luck = d.luck + Math.floor(levels / 3);
++  if (h.hp === undefined) { h.hp = h.maxHp; h.mp = h.maxMp; }
++  else if (h.hp > 0) {
++    h.hp = Math.min(h.maxHp, h.hp + h.maxHp - oldHp);
++    h.mp = Math.min(h.maxMp, h.mp + h.maxMp - oldMp);
++  }
++  h.alive = h.hp > 0;
++  return h;
++}
++
++function makeHero(id, lvl = 1) {
++  return rebuild({ id, label: HEROES[id].label, lvl, xp: 0, limit: 0, status: {}, guard: false });
++}
++
++export function createParty({ level = 1 } = {}) {
++  return { heroes: PARTY_ORDER.map((id) => makeHero(id, level)), inventory: { ...START_ITEMS } };
+ }
+ 
+ export const standing = (party) => party.heroes.filter((h) => h.hp > 0);
+@@ -42,30 +65,85 @@ export function hurt(party, amount, random = Math.random) {
+   for (let n = 0; n < amount; n++) {
+     const up = party.heroes.filter((h) => h.hp > 0);
+     if (!up.length) break;
+-    let pick = random() * up.reduce((s, h) => s + h.weight, 0);
++    const weight = (h) => EXPOSURE[h.id] ?? 1;
++    let pick = random() * up.reduce((s, h) => s + weight(h), 0);
+     let hero = up[up.length - 1];
+     for (const h of up) {
+-      pick -= h.weight;
++      pick -= weight(h);
+       if (pick < 0) { hero = h; break; }
+     }
+     hero.hp -= 1;
++    if (hero.hp <= 0) hero.alive = false;
+     took[party.heroes.indexOf(hero)] += 1;
+   }
+   return took;
+ }
+ 
+-/** Everyone still standing gets `amount` back, up to their best. */
++/** Everyone still standing gets `amount` HP back, up to their best. */
+ export function heal(party, amount) {
+   return party.heroes.map((h) => {
+     if (h.hp <= 0) return 0;
+-    const gain = Math.min(amount, h.max - h.hp);
++    const gain = Math.min(amount, h.maxHp - h.hp);
+     h.hp += gain;
+     return gain;
+   });
+ }
+ 
+-/** Down the stairs, a rest: the fallen get back up, and everyone gets half their hit points back. */
++/** Down the stairs, a rest: the fallen get back up, and everyone gets half their HP and MP back. */
+ export function rest(party) {
+-  for (const h of party.heroes) h.hp = Math.min(h.max, Math.max(h.hp, 0) + Math.ceil(h.max / 2));
++  for (const h of party.heroes) {
++    h.hp = Math.min(h.maxHp, Math.max(h.hp, 0) + Math.ceil(h.maxHp / 2));
++    h.mp = Math.min(h.maxMp, h.mp + Math.ceil(h.maxMp / 2));
++    h.alive = true;
++    h.status = {};
++  }
++  return party;
++}
++
++/**
++ * Experience to every hero, standing or not (capitol-quest shares it out
++ * the same way). A hero who goes up a level comes back to full HP and MP.
++ * Returns who went up: [{ id, from, to }].
++ */
++export function grantXP(party, xp) {
++  const gains = [];
++  for (const h of party.heroes) {
++    const from = h.lvl;
++    h.xp += xp;
++    while (xpRequired(h.lvl) && h.xp >= xpRequired(h.lvl)) {
++      h.xp -= xpRequired(h.lvl);
++      h.lvl++;
++    }
++    if (h.lvl > from) {
++      rebuild(h);
++      h.hp = h.maxHp;
++      h.mp = h.maxMp;
++      h.alive = true;
++      gains.push({ id: h.id, from, to: h.lvl });
++    }
++  }
++  return gains;
++}
++
++/** What a chest has in it besides gold, by where it stands: one of these. */
++const CHEST_ITEMS = ['HIPOTION', 'ETHER', 'PHOENIX'];
++
++/**
++ * Something rolled over in the dungeon, into the bag: potions go in as
++ * Potions, chests give gold and an item. Returns the gold and the item key.
++ */
++export function loot(party, pickup) {
++  const item = pickup.kind === 'potion' ? 'POTION'
++    : pickup.kind === 'chest' ? CHEST_ITEMS[Math.floor(pickup.x + pickup.z) % CHEST_ITEMS.length] : null;
++  if (item) party.inventory[item] = (party.inventory[item] ?? 0) + 1;
++  return { gold: pickup.kind === 'gold' || pickup.kind === 'chest' ? pickup.amount : 0, item };
++}
++
++/** The party as it is, to put back if a fight is retried. */
++export const snapshot = (party) => JSON.parse(JSON.stringify(party));
++
++export function restore(party, saved) {
++  party.heroes = JSON.parse(JSON.stringify(saved.heroes));
++  party.inventory = { ...saved.inventory };
+   return party;
+ }
+diff --git a/src/storage.js b/src/storage.js
+index a3bdc40..8379a34 100644
+--- a/src/storage.js
++++ b/src/storage.js
+@@ -1,29 +1,37 @@
+ /**
+  * What the game remembers between visits: the most gold a party has come
+- * out with, and the deepest level reached (any level down to it can be
+- * started from the title). Browser storage can be missing or refuse, so
+- * every touch of it is guarded and the game plays the same without it.
++ * out with, the deepest level reached (any level down to it can be started
++ * from the title), and how fights are played — auto-battle and speed.
++ * Browser storage can be missing or refuse, so every touch of it is guarded
++ * and the game plays the same without it.
+  */
+ 
+ const KEY = 'dungeon-roller.v1';
+ 
++const SETTINGS = { autoMode: 0, battleSpeed: 1 };
++
+ export function createStorage(store = globalThis.localStorage) {
+-  let saved = { best: 0, reached: 0 };
++  let saved = { best: 0, reached: 0, settings: { ...SETTINGS } };
+   try {
+     const raw = JSON.parse(store?.getItem(KEY) ?? 'null');
+     if (raw && typeof raw === 'object') {
+       saved.best = Number.isFinite(raw.best) ? raw.best : 0;
+       saved.reached = Number.isInteger(raw.reached) ? raw.reached : 0;
++      const s = raw.settings ?? {};
++      saved.settings = {
++        autoMode: Number.isInteger(s.autoMode) && s.autoMode >= 0 && s.autoMode <= 3 ? s.autoMode : 0,
++        battleSpeed: Number.isInteger(s.battleSpeed) && s.battleSpeed >= 1 && s.battleSpeed <= 3 ? s.battleSpeed : 1,
++      };
+     }
+   } catch {}
+ 
+   const save = () => {
+     try { store?.setItem(KEY, JSON.stringify(saved)); } catch {}
+-    return { ...saved };
++    return { ...saved, settings: { ...saved.settings } };
+   };
+ 
+   return {
+-    load: () => ({ ...saved }),
++    load: () => ({ ...saved, settings: { ...saved.settings } }),
+     reached(index) {
+       saved = { ...saved, reached: Math.max(saved.reached, index) };
+       return save();
+@@ -32,5 +40,9 @@ export function createStorage(store = globalThis.localStorage) {
+       saved = { ...saved, best: Math.max(saved.best, score), last: score };
+       return save();
+     },
++    settings(next) {
++      saved = { ...saved, settings: { ...saved.settings, ...next } };
++      return save();
++    },
+   };
+ }
+diff --git a/src/styles.css b/src/styles.css
+index dc66947..f7f63ac 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -103,34 +103,30 @@ html, body {
+ #party[hidden] { display: none; }
+ #party li {
+   display: grid;
+-  grid-template-columns: 20px 54px 92px 42px 30px;
++  grid-template-columns: 30px 66px 38px 92px 52px 30px;
+   align-items: center;
+   gap: 6px;
+ }
+-#party b {
+-  display: grid;
+-  place-content: center;
+-  width: 20px; height: 20px;
+-  border-radius: 3px;
+-  font-size: 11px;
+-  color: #120e0c;
+-  background: var(--hero);
+-}
+-#party .name { letter-spacing: 0.06em; }
+-#party .bar, #battle .bar {
+-  height: 7px;
++#party .face { width: 30px; height: 30px; overflow: hidden; border-radius: 3px; background: #2a201c; box-shadow: inset 0 0 0 1px var(--hero); }
++#party .face canvas { width: 30px; height: 30px; image-rendering: pixelated; display: block; }
++#party .name { letter-spacing: 0.06em; color: var(--hero); font-weight: 700; }
++#party .lv { color: var(--dim); font-size: 11px; }
++#party .bars { display: grid; gap: 3px; }
++#party .bar {
++  height: 6px;
+   background: rgba(255, 255, 255, 0.1);
+   border-radius: 2px;
+   overflow: hidden;
+ }
+-#party .bar i, #battle .bar i {
++#party .bar i {
+   display: block;
+   height: 100%;
+-  background: linear-gradient(#6fd27a, #3e9a4a);
+   transition: width 0.4s ease-out;
+ }
+-#party .bar i.low { background: linear-gradient(#ff8a5a, #c8402a); }
+-#party .hp { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
++#party .bar.hp i { background: linear-gradient(#6fd27a, #3e9a4a); }
++#party .bar.hp i.low { background: linear-gradient(#ff8a5a, #c8402a); }
++#party .bar.mp i { background: linear-gradient(#8ab8f0, #4a78c0); }
++#party span.hp { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+ #party .hit { font-weight: 800; opacity: 0; }
+ #party .hit.hurt { color: var(--blood); }
+ #party .hit.healed { color: #7fe08a; }
+@@ -138,6 +134,7 @@ html, body {
+ @keyframes hit { 0% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+ #party li.down { opacity: 0.4; }
+ #party li.down .name { text-decoration: line-through; }
++#party li.bag { display: block; color: var(--dim); font-size: 11px; padding-top: 2px; border-top: 1px solid var(--edge); }
+ 
+ #roll {
+   position: fixed;
+@@ -295,74 +292,23 @@ kbd {
+   color: var(--ink);
+ }
+ 
+-/* The battle: for now, a stand-in (battle.js). */
++/* The battle: a 1280 × 720 canvas over everything (battle/screen.js). */
+ #battle {
+   position: fixed;
+   inset: 0;
+   display: grid;
+   place-items: center;
+-  padding: 16px;
+-  background: radial-gradient(ellipse at center, rgba(40, 8, 4, 0.35), rgba(0, 0, 0, 0.75));
++  background: #000;
++  z-index: 10;
+ }
+ #battle[hidden] { display: none; }
+-#battle.pop .card { animation: slam 0.4s cubic-bezier(.2, 1.5, .4, 1); }
+-@keyframes slam { from { transform: scale(1.4); opacity: 0; } }
+-#battle .card {
+-  width: min(440px, 100%);
+-  padding: 18px 22px 20px;
+-  background: rgba(18, 12, 10, 0.94);
+-  border: 1px solid rgba(255, 180, 120, 0.35);
+-  border-radius: 6px;
+-  box-shadow: 0 0 60px rgba(255, 90, 30, 0.25);
+-  text-align: center;
+-}
+-#battle .mock {
+-  margin: 0 0 6px;
+-  font-size: 10px;
+-  letter-spacing: 0.35em;
+-  text-transform: uppercase;
+-  color: var(--dim);
+-}
+-#battle h2 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blood); }
+-#battle .clash { display: flex; justify-content: center; align-items: center; gap: 22px; }
+-#battle .roll, #battle .dc { display: grid; justify-items: center; gap: 4px; }
+-#battle .d20 {
+-  display: grid;
+-  place-content: center;
+-  width: 92px; height: 84px;
+-  padding-top: 8px;
+-  font-size: 38px;
+-  font-weight: 900;
+-  color: #e7e0f7;
+-  background: #3a3350;
+-  clip-path: polygon(50% 0, 97% 28%, 97% 78%, 50% 100%, 3% 78%, 3% 28%);
+-}
+-#battle .d20[data-grade="critical"] { color: #ffd479; background: #5a4520; }
+-#battle .d20[data-grade="fumble"] { color: #ff7a5c; background: #4a1f22; }
+-#battle .vs { font-size: 14px; color: var(--dim); letter-spacing: 0.2em; }
+-#battle .dc .value { font-size: 34px; font-weight: 800; color: var(--ink); }
+-#battle .grade { margin: 14px 0 2px; font-size: 26px; font-weight: 900; letter-spacing: 0.14em; }
+-#battle .grade[data-grade="critical"] { color: #ffd479; }
+-#battle .grade[data-grade="success"] { color: #8fe08a; }
+-#battle .grade[data-grade="struggle"] { color: var(--torch); }
+-#battle .grade[data-grade="fumble"] { color: var(--blood); }
+-#battle .line { margin: 0 0 14px; font-size: 12px; color: var(--dim); }
+-#battle .heroes { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 5px; font-size: 13px; }
+-#battle .heroes li { display: grid; grid-template-columns: 64px 1fr 48px 64px; align-items: center; gap: 8px; text-align: left; }
+-#battle .heroes .hp { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+-#battle .heroes .lost { color: var(--blood); font-weight: 800; }
+-#battle .heroes li.down { opacity: 0.5; }
+-#battle .loot { margin: 0 0 14px; color: var(--gold); font-weight: 800; letter-spacing: 0.1em; }
+-#battle .go {
+-  font-size: 16px;
+-  font-weight: 800;
+-  letter-spacing: 0.25em;
+-  padding: 10px 26px;
+-  background: var(--torch);
+-  color: #1a100a;
+-  border: 0;
+-  border-radius: 3px;
+-  box-shadow: 0 3px 0 #6a2a12;
++#battle canvas {
++  width: min(100vw, calc(100vh * 16 / 9));
++  height: auto;
++  aspect-ratio: 16 / 9;
++  image-rendering: pixelated;
++  touch-action: none;
++  outline: none;
+ }
+ 
+ #mute {
+@@ -405,9 +351,10 @@ kbd {
+   #level { font-size: 11px; }
+   #map { max-width: 100px; max-height: 100px; }
+   #party { font-size: 10px; padding: 6px 8px; gap: 3px; }
+-  #party li { grid-template-columns: 16px 64px 34px; }
+-  #party .name, #party .hit { display: none; }
+-  #party b { width: 16px; height: 16px; font-size: 10px; }
++  #party li { grid-template-columns: 22px 30px 64px; }
++  #party .name, #party .hit, #party span.hp { display: none; }
++  #party .face, #party .face canvas { width: 22px; height: 22px; }
++  #party li.bag { display: none; }
+   #roll { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px); }
+   .help .keys { display: none; }
+ }
+diff --git a/test/battle.test.js b/test/battle.test.js
+index 225eea2..67ebcae 100644
+--- a/test/battle.test.js
++++ b/test/battle.test.js
+@@ -1,33 +1,124 @@
+ import assert from 'node:assert/strict';
+ import { test } from 'node:test';
+ 
+-import { resolveBattle } from '../src/battle.js';
+-import { MONSTERS } from '../src/monsters.js';
+-
+-test('the roll decides it: a natural 20 is a critical, a 1 a fumble, the DC splits the rest', () => {
+-  const monster = MONSTERS.skeleton;
+-  assert.equal(resolveBattle({ roll: 20, monster }).grade, 'critical');
+-  assert.equal(resolveBattle({ roll: 1, monster }).grade, 'fumble');
+-  assert.equal(resolveBattle({ roll: monster.dc, monster }).grade, 'success');
+-  assert.equal(resolveBattle({ roll: monster.dc - 1, monster }).grade, 'struggle');
+-});
+-
+-test('a better roll never costs the party more', () => {
+-  for (const monster of Object.values(MONSTERS)) {
+-    let last = Infinity;
+-    for (let roll = 1; roll <= 20; roll++) {
+-      const { damage } = resolveBattle({ roll, monster });
+-      assert.ok(damage <= last, `${monster.name}: ${roll} cost ${damage}, ${roll - 1} cost ${last}`);
+-      assert.ok(Number.isInteger(damage) && damage >= 0);
+-      last = damage;
+-    }
+-    assert.equal(resolveBattle({ roll: 20, monster }).damage, 0);
+-    assert.ok(resolveBattle({ roll: 1, monster }).damage > resolveBattle({ roll: 2, monster }).damage);
++import { encounter, foeLevel, FOES, HEROES, opening, SKILL_LEVELS } from '../src/battle/data.js';
++import { autoResolve, Battle } from '../src/battle/engine.js';
++import { createParty, seeded } from '../src/party.js';
++
++const fight = (opts = {}) => new Battle({ party: createParty(), foes: ['skeleton', 'skeleton'], level: 1, roll: 12, dc: 10, random: seeded(5), ...opts });
++
++/** Run the clock until `until(b)` or a few seconds have gone. */
++function run(b, until, seconds = 6) {
++  for (let t = 0; t < seconds && !until(b); t += 0.05) b.update(0.05);
++}
++
++test('the d20 sets the fight up: 20 catches them flat, over the DC strikes first, under it they do, 1 worse still', () => {
++  assert.equal(opening(20, 17), 'critical');
++  assert.equal(opening(12, 10), 'advantage');
++  assert.equal(opening(9, 10), 'surprised');
++  assert.equal(opening(1, 3), 'fumble');
++
++  const crit = fight({ roll: 20 });
++  assert.ok(crit.enemies.every((e) => e.broken));
++  assert.ok(crit.heroes.every((h) => h.limit >= 50));
++
++  const ahead = fight({ roll: 15 });
++  assert.ok(ahead.heroes.every((h) => h.status.atkUp));
++  run(ahead, (b) => b.phase !== 'intro');
++  assert.equal(ahead.phase, 'input', 'the party moves first');
++
++  const behind = fight({ roll: 4 });
++  run(behind, (b) => b.phase !== 'intro');
++  assert.equal(behind.phase, 'enemyAction', 'the monsters move first');
++
++  const fumble = fight({ roll: 1 });
++  assert.ok(fumble.heroes.every((h) => h.status.defDown));
++});
++
++test('the menus: attack a monster with the keys, and it takes the hit', () => {
++  const b = fight();
++  run(b, (x) => x.phase === 'input');
++  b.input('enter');
++  assert.equal(b.phase, 'target');
++  const target = b.targets()[0];
++  const hp = target.hp;
++  b.input('enter');
++  assert.equal(b.phase, 'action');
++  run(b, (x) => x.action?.applied);
++  assert.ok(target.hp < hp);
++});
++
++test('a skill costs MP; skills come with levels; a full LIMIT adds the limit skill', () => {
++  const b = fight();
++  const hero = b.heroes[0];
++  assert.equal(b.skillsFor(hero).length, 1);
++  hero.lvl = SKILL_LEVELS[4];
++  assert.equal(b.skillsFor(hero).length, 5);
++  hero.limit = 100;
++  assert.ok(b.skillsFor(hero).some((s) => s.limit && s.name === HEROES.hero.limit.name));
++  run(b, (x) => x.phase === 'input');
++  const mp = hero.mp;
++  b.input('2');
++  b.chooseSkill(b.skillsFor(hero)[0]);
++  b.confirmTarget(b.aliveEnemies()[0]);
++  assert.equal(hero.mp, mp - HEROES.hero.skills[0].cost);
++});
++
++test('hitting a weakness twice breaks a monster: it loses its next move', () => {
++  const b = fight({ foes: ['ooze'] });
++  const ooze = b.enemies[0];
++  assert.equal(ooze.weak, 'magic');
++  run(b, (x) => x.phase === 'input');
++  // Two magic missiles from the mage.
++  for (let k = 0; k < 2; k++) {
++    b.actorIndex = 2;
++    b.phase = 'input';
++    b.beginPlayerAction({ kind: 'basic', actor: b.heroes[2], target: ooze, pose: 'attack' });
++    run(b, (x) => x.action?.resolved);
++    b.action = null;
++  }
++  assert.ok(ooze.broken);
++  assert.equal(b.planIntent(ooze).kind, 'broken');
++});
++
++test('defending braces the hero: DEF up and half the next hit', () => {
++  const b = fight();
++  run(b, (x) => x.phase === 'input');
++  b.input('4');
++  run(b, (x) => x.action?.resolved);
++  assert.ok(b.heroes[0].guard);
++  assert.ok(b.heroes[0].status.defUp);
++});
++
++test('auto-battle wins a fair fight, and the win pays experience and gold', () => {
++  for (const kind of Object.keys(FOES).filter((k) => !FOES[k].boss)) {
++    const party = createParty({ level: 4 });
++    const b = new Battle({ party, foes: encounter(kind, 2), level: foeLevel(2), roll: 10, dc: 10, random: seeded(9) });
++    assert.equal(autoResolve(b), 'won', kind);
++    assert.ok(b.result.xp > 0 && b.result.gold > 0);
+   }
+ });
+ 
+-test('the gold is the monster\'s, doubled on a critical', () => {
+-  const monster = MONSTERS.orc;
+-  assert.equal(resolveBattle({ roll: 14, monster }).gold, monster.gold);
+-  assert.equal(resolveBattle({ roll: 20, monster }).gold, monster.gold * 2);
++test('a big enough party beats the dragon; a fresh one does not', () => {
++  const strong = new Battle({ party: createParty({ level: 13 }), foes: ['dragon'], level: foeLevel(6), roll: 10, dc: 17, random: seeded(2) });
++  assert.equal(autoResolve(strong), 'won');
++  const weak = new Battle({ party: createParty({ level: 1 }), foes: ['dragon'], level: foeLevel(6), roll: 10, dc: 17, random: seeded(2) });
++  assert.equal(autoResolve(weak), 'fallen');
++});
++
++test('there is no running from the dragon; from anything else, mostly', () => {
++  const boss = fight({ foes: ['dragon'] });
++  run(boss, (x) => x.phase === 'input');
++  boss.input('6');
++  assert.equal(boss.phase, 'message');
++  assert.equal(boss.done, null);
++  let got = 0;
++  for (let s = 1; s <= 20; s++) {
++    const b = fight({ random: seeded(s) });
++    run(b, (x) => x.phase === 'input');
++    b.input('6');
++    run(b, (x) => x.done, 2);
++    if (b.done?.how === 'fled') got++;
++  }
++  assert.ok(got >= 10 && got < 20, `got away ${got} times in 20`);
+ });
+diff --git a/test/helpers/autopilot.js b/test/helpers/autopilot.js
+index 46ae979..d03544c 100644
+--- a/test/helpers/autopilot.js
++++ b/test/helpers/autopilot.js
+@@ -5,16 +5,20 @@
+  * the die along the plan with the same push the controls give. It waits for
+  * crushers to go up, spikes to go in and lifts to come, and it fights
+  * whatever it runs into, with the number on top of the die, as a player
+- * does. If it can get the party down the stairs alive, a person can: the
+- * tests hold every level to that.
++ * does — every fight played out with capitol-quest's auto-battle, the party
++ * keeping its levels, hit points and items from one to the next. If it can
++ * get the party down the stairs alive, a person can: the tests hold every
++ * level to that.
+  */
+ 
+ import * as GFX from '../../src/vendor/gfx/index.js';
+ import { hammerAt, liftAt, spikesAt } from '../../src/actors.js';
+-import { resolveBattle } from '../../src/battle.js';
++import { encounter, foeLevel } from '../../src/battle/data.js';
++import { autoResolve, Battle } from '../../src/battle/engine.js';
+ import { createDelve, HARM, putBack, STEP, stepDelve } from '../../src/delve.js';
+ import { FALL_LIMIT } from '../../src/physics.js';
+-import { createParty, heal, hurt, seeded, wiped } from '../../src/party.js';
++import { MONSTERS } from '../../src/monsters.js';
++import { createParty, hurt, loot, rest, seeded } from '../../src/party.js';
+ 
+ /** The furthest it will drop off a ledge: well short of a drop that hurts. */
+ export const DROP = FALL_LIMIT * 0.6;
+@@ -204,18 +208,18 @@ function waypoints(delve, moves, from) {
+ }
+ 
+ /**
+- * Drive level `index` to the stairs. Returns whether it got there, how long
+- * it took, every way the die was lost or the party hurt, the fights, and the
+- * party as it came out.
++ * Drive level `index` to the stairs with `party` (a fresh one if none).
++ * Returns whether it got there, how long it took, every way the die was lost
++ * or the party hurt, the fights, the gold, and the party as it came out.
+  */
+-export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
++export function drive(index, { limit = 1200, seed = 7, sample = null, party = createParty() } = {}) {
+   const delve = createDelve(GFX, index);
+   const level = delve.level;
+   const net = graph(level);
+   const b = delve.ball;
+-  const random = seeded(seed);
+-  const party = createParty();
++  const random = seeded(seed + index * 101);
+   const losses = [], harms = [], fights = [];
++  let gold = 0;
+ 
+   const exits = [];
+   for (let z = 0; z < level.rows; z++) for (let x = 0; x < level.cols; x++) if (level.cell(x, z)?.kind === 'exit') exits.push([x, z]);
+@@ -285,21 +289,25 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
+     if (Math.hypot(b.vx, b.vz) < 0.05 && !waiting) still += STEP; else still = 0;
+     if (still > 20) return { finished: false, time: t, losses, harms, fights, party, stuck: { at: here(), wp, of: route.length, goal: target } };
+ 
+-    if (out.outcome === 'exit') return { finished: true, time: t, losses, harms, fights, party, delve };
++    if (out.outcome === 'exit') return { finished: true, time: t, losses, harms, fights, party, gold, delve };
+     if (out.fight) {
+-      const result = resolveBattle({ roll: out.roll, monster: out.fight.stats });
+-      hurt(party, result.damage, random);
+-      fights.push({ kind: out.fight.kind, roll: out.roll, grade: result.grade, damage: result.damage });
++      const depth = level.depth;
++      const battle = new Battle({
++        party, foes: encounter(out.fight.kind, depth), level: foeLevel(depth), roll: out.roll, dc: MONSTERS[out.fight.kind].dc, random,
++      });
++      const how = autoResolve(battle);
++      fights.push({ kind: out.fight.kind, roll: out.roll, opening: battle.opening, how, rounds: battle.round, hp: party.heroes.map((h) => h.hp) });
++      if (how !== 'won') return { finished: false, time: t, losses, harms, fights, party, gold, stuck: `the party fell to a ${out.fight.kind}` };
++      gold += battle.result.gold;
+       delve.actors.defeat(out.fight);
+       b.vx = b.vz = 0;
+-      if (wiped(party)) return { finished: false, time: t, losses, harms, fights, party, stuck: 'party wiped' };
+     }
+     if (out.hurt) {
+       harms.push({ how: out.hurt, at: here(), time: +t.toFixed(1) });
+       hurt(party, HARM[out.hurt], random);
+     }
+     for (const p of out.picked) {
+-      if (p.kind === 'potion') heal(party, p.amount);
++      gold += loot(party, p).gold;
+       if (p.kind === 'key') replan();
+     }
+     if (out.outcome) {
+@@ -308,5 +316,19 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
+       down = 1.7;
+     }
+   }
+-  return { finished: false, time: t, losses, harms, fights, party, stuck: 'out of time' };
++  return { finished: false, time: t, losses, harms, fights, party, gold, stuck: 'out of time' };
++}
++
++/** The whole delve, level after level with one party, resting on the stairs between. */
++export function driveAll({ seed = 7 } = {}) {
++  const party = createParty();
++  const runs = [];
++  for (let i = 0; i < 6; i++) {
++    const run = drive(i, { seed, party });
++    run.levels = party.heroes.map((h) => `${h.id}:${h.lvl} ${h.hp}/${h.maxHp}`);
++    runs.push(run);
++    if (!run.finished) break;
++    rest(party);
++  }
++  return { party, runs };
+ }
+diff --git a/test/levels.test.js b/test/levels.test.js
+index c0fb021..1de7e8a 100644
+--- a/test/levels.test.js
++++ b/test/levels.test.js
+@@ -5,8 +5,12 @@ import * as GFX from '../src/vendor/gfx/index.js';
+ import { createDelve } from '../src/delve.js';
+ import { LEVELS, loadLevel } from '../src/levels.js';
+ import { MONSTERS } from '../src/monsters.js';
++import { createParty, rest } from '../src/party.js';
+ import { drive, graph, plan } from './helpers/autopilot.js';
+ 
++/** One party all the way down, as a player has: what it is like coming out of each level is what it takes into the next. */
++const party = createParty();
++
+ const exitsOf = (level) => {
+   const out = [];
+   for (let z = 0; z < level.rows; z++) for (let x = 0; x < level.cols; x++) if (level.cell(x, z)?.kind === 'exit') out.push([x, z]);
+@@ -58,14 +62,15 @@ for (const [i, make] of LEVELS.entries()) {
+   });
+ 
+   test(`${level.name}: the autopilot gets the party down the stairs alive, without losing the die`, () => {
+-    const result = drive(i);
++    const result = drive(i, { party });
+     assert.ok(result.finished, `stuck: ${JSON.stringify(result.stuck)} after ${result.time.toFixed(1)}s`);
+     assert.equal(result.losses.length, 0, JSON.stringify(result.losses));
+     assert.equal(result.harms.length, 0, JSON.stringify(result.harms));
+-    assert.ok(result.party.heroes.some((h) => h.hp > 0));
++    assert.ok(result.fights.every((f) => f.how === 'won'));
+     assert.ok(result.fights.length >= 5, `only ${result.fights.length} fights`);
+     // Long: a good deal longer than a Madness race, even going straight there.
+     assert.ok(result.time > 60, `over in ${result.time.toFixed(1)}s`);
++    rest(party);
+   });
+ }
+ 
+diff --git a/test/party.test.js b/test/party.test.js
+index 1dfe88e..b4cc980 100644
+--- a/test/party.test.js
++++ b/test/party.test.js
+@@ -1,44 +1,65 @@
+ import assert from 'node:assert/strict';
+ import { test } from 'node:test';
+ 
+-import { createParty, heal, HEROES, hurt, rest, seeded, standing, wiped } from '../src/party.js';
++import { HEROES, PARTY_ORDER, START_ITEMS, xpRequired } from '../src/battle/data.js';
++import { createParty, grantXP, heal, hurt, loot, rest, restore, seeded, snapshot, standing, wiped } from '../src/party.js';
+ 
+-test('four heroes, at their best', () => {
++test('the Hero, the Warrior, the Mage and the Healer, at their best, with a few things in the bag', () => {
+   const party = createParty();
+-  assert.equal(party.heroes.length, 4);
+-  assert.deepEqual(party.heroes.map((h) => h.name), HEROES.map((h) => h.name));
+-  for (const h of party.heroes) assert.equal(h.hp, h.max);
++  assert.deepEqual(party.heroes.map((h) => h.id), PARTY_ORDER);
++  for (const h of party.heroes) {
++    assert.equal(h.lvl, 1);
++    assert.equal(h.hp, HEROES[h.id].maxHp);
++    assert.equal(h.mp, HEROES[h.id].maxMp);
++  }
++  assert.deepEqual(party.inventory, START_ITEMS);
+ });
+ 
+-test('harm is spread over whoever is standing, the knight taking the most', () => {
++test('harm outside a fight is spread over whoever is standing, the front of the line taking the most', () => {
+   const party = createParty();
+-  const took = hurt(party, 40, seeded(3));
+-  assert.equal(took.reduce((a, b) => a + b, 0), 40);
+-  assert.ok(took[0] > took[3], 'the knight more than the mage');
+-  for (const [i, h] of party.heroes.entries()) assert.equal(h.hp, h.max - took[i]);
+-  // The same seed deals it the same way.
+-  const again = createParty();
+-  assert.deepEqual(hurt(again, 40, seeded(3)), took);
++  const took = hurt(party, 80, seeded(3));
++  assert.equal(took.reduce((a, b) => a + b, 0), 80);
++  assert.ok(took[1] > took[2], 'the warrior more than the mage');
++  assert.deepEqual(hurt(createParty(), 80, seeded(3)), took, 'the same seed, the same way');
+ });
+ 
+ test('nobody goes below nothing, and when all four are down the party has fallen', () => {
+   const party = createParty();
+   const total = party.heroes.reduce((a, h) => a + h.hp, 0);
+-  const took = hurt(party, total + 50, seeded(1));
+-  assert.equal(took.reduce((a, b) => a + b, 0), total);
+-  assert.ok(party.heroes.every((h) => h.hp === 0));
++  assert.equal(hurt(party, total + 50, seeded(1)).reduce((a, b) => a + b, 0), total);
+   assert.ok(wiped(party));
+   assert.equal(standing(party).length, 0);
+ });
+ 
+-test('a potion heals the standing, up to their best; a rest gets the fallen back up', () => {
++test('healing tops up the standing; a rest on the stairs gets the fallen back up', () => {
+   const party = createParty();
+   party.heroes[0].hp = 0;
+   party.heroes[1].hp = 5;
+-  party.heroes[2].hp = party.heroes[2].max - 2;
+-  const got = heal(party, 8);
+-  assert.deepEqual(got, [0, 8, 2, 0]);
++  assert.deepEqual(heal(party, 8), [0, 8, 0, 0]);
+   rest(party);
+-  assert.equal(party.heroes[0].hp, Math.ceil(party.heroes[0].max / 2));
+-  assert.ok(party.heroes.every((h) => h.hp > 0 && h.hp <= h.max));
++  assert.ok(party.heroes.every((h) => h.hp > 0 && h.hp <= h.maxHp && h.alive));
++});
++
++test('experience levels the heroes up, and a hero who goes up comes back to full', () => {
++  const party = createParty();
++  party.heroes[0].hp = 10;
++  const gains = grantXP(party, xpRequired(1) + 5);
++  assert.equal(gains.length, 4);
++  const hero = party.heroes[0];
++  assert.equal(hero.lvl, 2);
++  assert.equal(hero.xp, 5);
++  assert.equal(hero.hp, hero.maxHp);
++  assert.ok(hero.maxHp > HEROES.hero.maxHp && hero.atk > HEROES.hero.atk);
++});
++
++test('potions and chests go in the bag; a snapshot puts the party back as it was', () => {
++  const party = createParty();
++  const saved = snapshot(party);
++  assert.deepEqual(loot(party, { kind: 'potion', x: 1.5, z: 1.5, amount: 8 }), { gold: 0, item: 'POTION' });
++  const chest = loot(party, { kind: 'chest', x: 2.5, z: 3.5, amount: 60 });
++  assert.equal(chest.gold, 60);
++  assert.ok(party.inventory[chest.item] >= 1);
++  party.heroes[0].hp = 1;
++  restore(party, saved);
++  assert.deepEqual(party, saved);
+ });
+diff --git a/test/storage.test.js b/test/storage.test.js
+index e0ae3ae..10b20ff 100644
+--- a/test/storage.test.js
++++ b/test/storage.test.js
+@@ -11,7 +11,7 @@ const memory = () => {
+ test('remembers the most gold and the deepest level', () => {
+   const store = memory();
+   const s = createStorage(store);
+-  assert.deepEqual(s.load(), { best: 0, reached: 0 });
++  assert.deepEqual(s.load(), { best: 0, reached: 0, settings: { autoMode: 0, battleSpeed: 1 } });
+   s.reached(2);
+   s.reached(1);
+   s.record(5000);
+@@ -22,10 +22,17 @@ test('remembers the most gold and the deepest level', () => {
+ });
+ 
+ test('plays on without storage, or with storage that throws or holds rubbish', () => {
+-  assert.deepEqual(createStorage(null).load(), { best: 0, reached: 0 });
++  const blank = { best: 0, reached: 0, settings: { autoMode: 0, battleSpeed: 1 } };
++  assert.deepEqual(createStorage(null).load(), blank);
+   const angry = { getItem() { throw new Error('no'); }, setItem() { throw new Error('no'); } };
+   const s = createStorage(angry);
+   assert.equal(s.record(10).best, 10);
+-  assert.deepEqual(createStorage({ getItem: () => '{nope', setItem() {} }).load(), { best: 0, reached: 0 });
+-  assert.deepEqual(createStorage({ getItem: () => '{"best":"lots","reached":1.5}', setItem() {} }).load(), { best: 0, reached: 0 });
++  assert.deepEqual(createStorage({ getItem: () => '{nope', setItem() {} }).load(), blank);
++  assert.deepEqual(createStorage({ getItem: () => '{"best":"lots","reached":1.5,"settings":{"autoMode":9}}', setItem() {} }).load(), blank);
++});
++
++test('remembers how fights are played', () => {
++  const store = memory();
++  createStorage(store).settings({ autoMode: 2, battleSpeed: 3 });
++  assert.deepEqual(createStorage(store).load().settings, { autoMode: 2, battleSpeed: 3 });
+ });
