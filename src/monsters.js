@@ -20,7 +20,7 @@ export const MONSTERS = Object.freeze({
   goblin: { name: 'Goblin', move: 'walk', dc: 9, power: 4, gold: 10, radius: 0.3, speed: 3.8 },
   orc: { name: 'Orc Brute', move: 'walk', dc: 13, power: 6, gold: 25, radius: 0.4, speed: 2.6 },
   slime: { name: 'Slime', move: 'crawl', dc: 8, power: 4, gold: 8, radius: 0.42, speed: 1.4 },
-  egg: { name: 'The Great Egg', move: 'walk', dc: 16, power: 10, gold: 200, radius: 0.8, speed: 1.2, boss: true },
+  egg: { name: 'Eggdreessen', move: 'walk', dc: 16, power: 10, gold: 200, radius: 0.8, speed: 1.2, boss: true },
   rock: { name: 'Boulder', move: 'walk', dc: 12, power: 5, gold: 16, radius: 0.4, speed: 2.2 },
   bat: { name: 'Cave Bat', move: 'fly', dc: 7, power: 2, gold: 5, radius: 0.28, speed: 2.4 },
   wraith: { name: 'Wraith', move: 'fly', dc: 14, power: 6, gold: 30, radius: 0.34, speed: 1.8 },

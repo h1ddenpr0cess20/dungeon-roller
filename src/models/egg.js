@@ -1,5 +1,5 @@
 /**
- * The Great Egg, a boss: Marc (github.com/h1ddenpr0cess20/marc, his `egg`)
+ * Eggdreessen, a boss: Marc (github.com/h1ddenpr0cess20/marc, his `egg`)
  * grown huge and gone bad. The shell is Marc's — a sphere drawn out into an
  * egg, cream with a scatter of speckles, a little clearcoat and sheen — and
  * he still rocks where he stands, squashes, and spins like a hard-boiled egg.
@@ -171,7 +171,7 @@ function spring(s, k, c, dt, to = 0) {
   s.p += s.v * dt;
 }
 
-/** The Great Egg, `height` tiles tall. */
+/** Eggdreessen, `height` tiles tall. */
 export function createEgg(GFX, { height = 1.9, seed = 0 } = {}) {
   const S = height / 2.07;
   const group = new GFX.Group();

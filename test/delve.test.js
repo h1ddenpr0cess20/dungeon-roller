@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import * as GFX from '../src/vendor/gfx/index.js';
+import { LEVELS } from '../src/levels.js';
 import { createDelve, putBack, showing, STEP, stepDelve } from '../src/delve.js';
 
 /** Run level `index` with the die put at (x, z) and pushed along `push`, until `until(out)` or `seconds`. */
@@ -70,7 +71,7 @@ test('a gate stays shut without a key, and lifts with one', () => {
 });
 
 test('lava burns', () => {
-  const delve = createDelve(GFX, 4);
+  const delve = createDelve(GFX, LEVELS.findIndex((make) => make().name === 'The Forge'));
   const level = delve.level;
   let lava = null;
   for (let z = 0; z < level.rows && !lava; z++) for (let x = 0; x < level.cols && !lava; x++) if (level.cell(x, z)?.kind === 'lava') lava = [x, z];

@@ -99,11 +99,17 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
     return out.copy(colors[i]).lerp(colors[(i + 1) % colors.length], f - i);
   };
 
+  // Real glass (transmission) only close up: it has the renderer draw the
+  // whole scene again behind it every frame, which a dungeon full of slimes
+  // can't afford. On the board the jelly is see-through by blending instead.
+  const glass = detail >= 1;
   const shellMaterial = new GFX.MeshPhysicalMaterial({
-    name: 'slime-shell', color: new GFX.Color('#38f2b6'), transparent: true, opacity: 0.8,
-    transmission: 0.9, thickness: 0.35, ior: 1.3, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.06,
+    name: glass ? 'slime-shell' : 'slime-shell-board', color: new GFX.Color('#38f2b6'), transparent: true, opacity: glass ? 0.8 : 0.62,
+    transmission: glass ? 0.9 : 0, thickness: 0.35, ior: 1.3, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.06,
     iridescence: 0.35, iridescenceIOR: 1.35, attenuationDistance: 2.4, attenuationColor: new GFX.Color('#7ff0d8'),
     sheen: 0.5, sheenRoughness: 0.5, sheenColor: new GFX.Color('#ffffff'),
+    emissive: new GFX.Color('#000000'), emissiveIntensity: glass ? 0 : 0.35,
+    depthWrite: glass,
   });
   const shellGeometry = new GFX.SphereGeometry(1, Math.round(72 * detail) + 16, Math.round(48 * detail) + 10);
   const shellBase = shellGeometry.attributes.position.array.slice();
@@ -151,7 +157,7 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
   }
 
   const bubbleMaterial = new GFX.MeshPhysicalMaterial({
-    name: 'slime-bubble', color: new GFX.Color('#eafffb'), roughness: 0.05, transmission: 0.95, thickness: 0.15, ior: 1.2, transparent: true, opacity: 0.5,
+    name: 'slime-bubble', color: new GFX.Color('#eafffb'), roughness: 0.05, transmission: glass ? 0.95 : 0, thickness: 0.15, ior: 1.2, transparent: true, opacity: 0.5,
   });
   const bubbles = Array.from({ length: 5 }, (_, i) => {
     const b = new GFX.Mesh(new GFX.SphereGeometry(0.05 + (i % 3) * 0.03, 12, 8), bubbleMaterial);
@@ -164,6 +170,7 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
 
   const tint = new GFX.Color(), white = new GFX.Color('#ffffff');
   const own = ((hue % STOPS.length) + STOPS.length) % STOPS.length;
+  let shaped = -Infinity, lastClip = null;
 
   return {
     group,
@@ -196,6 +203,10 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
       }
       const phase = T * rate;
       sy *= 1 + Math.sin(phase * 1.5) * 0.035;
+      // Re-shaping the jelly is the costly part: at most thirty times a second.
+      if (time - shaped < 1 / 30 && time >= shaped && clip === lastClip) return;
+      shaped = time;
+      lastClip = clip;
       deform(shellGeometry.attributes.position, shellBase, LOBES, { wobble, phase, ampScale: 1, freqScale: 2.35, phaseScale: 2.2, sx, sy, dome: true });
       shellGeometry.computeVertexNormals();
       deform(coreGeometry.attributes.position, coreBase, CORE_LOBES, { wobble, phase, ampScale: 1.5, freqScale: 2.6, phaseScale: -3, sx: 0.3 * sx, sy: 0.3 * sy / 0.72, dome: false });
@@ -210,6 +221,7 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
       // Its colour: near its own, drifting a little.
       colorAt(own + Math.sin(T * 0.13) * 0.35, tint);
       shellMaterial.color.copy(tint);
+      if (!glass) shellMaterial.emissive.copy(tint);
       shellMaterial.attenuationColor.copy(tint).lerp(white, 0.35);
       coreMaterial.emissive.copy(tint);
       coreMaterial.emissiveIntensity = (3.4 + Math.sin(phase * 2.1) * 0.6) * glowK;

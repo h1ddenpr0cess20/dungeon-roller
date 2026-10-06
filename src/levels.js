@@ -201,13 +201,99 @@ function catacombs() {
   return c;
 }
 
+const PITS = {
+  tiles: ['#7f8c7a', '#6c7868', '#5b6b4c', '#5e6a5a'], walls: ['#59634f', '#4b5545', '#3f4b37', '#4b5347'],
+  ambient: [0.34, 0.48, 0.42], trap: '#2f4a26', lift: '#7a8670',
+};
+
+function pits() {
+  const c = new Dungeon({ name: 'The Slime Pits', depth: 3, cols: 100, rows: 112, palette: PITS, intro: 'Something wet moves down here. A great many somethings.' });
+  c.room(2, 4, 5, 5, 52, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 52, heading: '+x' });
+  d.hall(6);
+  // The first pool: a slime goes round it, rats in the wet.
+  const pool = d.room(9, 9);
+  c.mob('slime', ...pool.tile(1, -3), { path: loop(pool, 1) });
+  c.mob('rat', ...pool.tile(5, 2), { range: 5 });
+  c.potion(...pool.tile(7, -3));
+  d.hall(3);
+  // Down the first sewer: banked, no walls.
+  d.chute(8, 3);
+  const sump = d.room(7, 7);
+  c.mob('slime', ...sump.tile(1, -2), { path: loop(sump, 1) }).gold(...sump.tile(5, 2), 15);
+  d.turn('+z');
+  d.hall(4);
+  // Spikes in the drip.
+  const drip = d.hall(10);
+  c.spike(...across(drip, 3, { period: 2.4 }));
+  c.spike(...across(drip, 7, { period: 2.4, phase: 1.2 }));
+  d.stairs(4, 2);
+  // The green hall: slimes going round both ends of it, rats in the middle.
+  const green = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...green.tile(a, b), 0.8);
+  c.mob('slime', ...green.tile(1, -4), { path: loop(green, 1, 0, 6) });
+  c.mob('slime', ...green.tile(6, 4), { path: loop(green, 1, 5, 11).reverse() });
+  c.mob('rat', ...green.tile(5, 0), { range: 6 }).mob('rat', ...green.tile(8, -2), { range: 6 });
+  c.chest(...green.tile(9, 4), 50);
+  // The key, out of the side of the green hall and over the dark.
+  const side = d.fork().jump(pick(green.tile(5, -6), '+x'));
+  side.hall(3);
+  const reach = side.bridge(7);
+  c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
+  const cell = side.room(5, 7);
+  c.key(...cell.tile(3, 0)).mob('slime', ...cell.tile(1, -2), { path: loop(cell, 1) }).gold(...cell.tile(4, 2), 20);
+  d.hall(3);
+  const barred = d.hall(6);
+  gate(c, barred, 3);
+  d.turn('+x');
+  const ledge = d.ledge(12, { width: 2 });
+  c.mob('rat', ...ledge.tile(4, 0), { range: 4 }).mob('rat', ...ledge.tile(9, 1), { range: 4 });
+  d.bridge(6);
+  // The cistern.
+  const cistern = d.room(7, 7);
+  c.mob('slime', ...cistern.tile(1, -2), { path: loop(cistern, 1) });
+  c.mob('bat', ...cistern.tile(3, 0), { path: [cistern.tile(1, 2), cistern.tile(5, -2)] });
+  c.potion(...cistern.tile(5, 2));
+  d.turn('+z');
+  // The long sewer down.
+  d.chute(10, 4);
+  const drain = d.room(9, 9);
+  c.mob('slime', ...drain.tile(1, -3), { path: loop(drain, 1, 0, 5) });
+  c.mob('slime', ...drain.tile(5, 3), { path: loop(drain, 1, 4, 9).reverse() });
+  c.mob('rat', ...drain.tile(4, 0), { range: 5 });
+  c.gold(...drain.tile(7, -3), 20);
+  d.hall(3);
+  d.turn('-x');
+  d.hall(8);
+  d.stairs(4, 2);
+  // The font: the biggest pool of them.
+  const font = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [2, 2], [6, -2], [6, 2]]) c.pillar(...font.tile(a, b), 0.8);
+  c.mob('slime', ...font.tile(1, -3), { path: loop(font, 1) });
+  c.mob('slime', ...font.tile(4, 0), { path: [font.tile(4, -1), font.tile(4, 1)] });
+  c.mob('rat', ...font.tile(7, 3), { range: 4 });
+  c.chest(...font.tile(7, -4), 60);
+  d.turn('+z');
+  d.hall(5);
+  const last = d.hall(10);
+  c.crusher(...across(last, 3, { period: 2.4 }));
+  c.spike(...across(last, 7, { period: 2.2, phase: 0.6 }));
+  d.ramp(6, 2.5);
+  const outfall = d.room(7, 7);
+  c.mob('slime', ...outfall.tile(1, -2), { path: loop(outfall, 1) }).mob('bat', ...outfall.tile(4, 0), { path: [outfall.tile(2, 2), outfall.tile(5, -2)] });
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
 const CHASM = {
   tiles: ['#8c95a3', '#76808e', '#6d5a48', '#5e6672'], walls: ['#5f6774', '#525a66', '#4a3c30', '#4c535e'],
   ambient: [0.36, 0.42, 0.56], lift: '#7d8694',
 };
 
 function chasm() {
-  const c = new Dungeon({ name: 'The Chasm', depth: 3, cols: 92, rows: 92, palette: CHASM, intro: 'The floor gives out. Ride the platforms; wait for them.' });
+  const c = new Dungeon({ name: 'The Chasm', depth: 4, cols: 92, rows: 92, palette: CHASM, intro: 'The floor gives out. Ride the platforms; wait for them.' });
   c.room(2, 4, 5, 5, 60, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 60, heading: '+x' });
@@ -285,7 +371,7 @@ const WARRENS = {
 };
 
 function warrens() {
-  const c = new Dungeon({ name: 'The Goblin Warrens', depth: 4, cols: 112, rows: 139, palette: WARRENS, intro: 'Goblins, and what they keep. Two gates, two keys.' });
+  const c = new Dungeon({ name: 'The Goblin Warrens', depth: 5, cols: 112, rows: 139, palette: WARRENS, intro: 'Goblins, and what they keep. Two gates, two keys.' });
   c.room(2, 4, 5, 5, 70, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 70, heading: '+x' });
@@ -383,6 +469,173 @@ function warrens() {
   return c;
 }
 
+const QUARRY = {
+  tiles: ['#a99d89', '#968a76', '#7a6a52', '#857a68'], walls: ['#7d725f', '#6c6250', '#584c3a', '#6a5f4e'],
+  ambient: [0.5, 0.46, 0.4], trap: '#4a3a2a', lift: '#9a8e78',
+};
+
+function quarry() {
+  const c = new Dungeon({ name: 'The Quarry', depth: 6, cols: 100, rows: 106, palette: QUARRY, intro: 'They cut stone here, until some of the stone got up and walked off.' });
+  c.room(2, 4, 5, 5, 80, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 80, heading: '+x' });
+  d.hall(5);
+  // The cutting: blocks of stone stood about, and one of them is not a block.
+  const cutting = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [6, 2]]) c.pillar(...cutting.tile(a, b), 1.2);
+  c.mob('rock', ...cutting.tile(5, -1), { range: 5 }).mob('goblin', ...cutting.tile(3, 2), { range: 5 });
+  c.gold(...cutting.tile(7, -3), 15);
+  d.ramp(6, 2);
+  d.hall(2);
+  // Over the old workings on a platform.
+  d.ferry(9, { period: 6 });
+  const yard = d.room(7, 7);
+  c.mob('rock', ...yard.tile(4, 0), { range: 4 }).potion(...yard.tile(5, 2));
+  d.turn('+z');
+  d.hall(4);
+  // The presses: stone blocks dropping, out of step.
+  const press = d.hall(10);
+  c.crusher(...across(press, 3, { period: 2.4 }));
+  c.crusher(...across(press, 7, { period: 2.4, phase: 1.2 }));
+  d.stairs(5, 2.5);
+  // The pit face: boulders and the goblins who dig round them.
+  const face = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [7, 3]]) c.pillar(...face.tile(a, b), 1.2);
+  c.mob('rock', ...face.tile(4, -2), { range: 6 }).mob('rock', ...face.tile(8, 3), { range: 6 });
+  c.mob('goblin', ...face.tile(6, 0), { range: 6 }).mob('goblin', ...face.tile(2, 3), { range: 6 });
+  c.mob('bat', ...face.tile(5, 0), { path: loop(face, 2) });
+  c.chest(...face.tile(9, -4), 70);
+  // The key is in the foreman's hut, over the dark.
+  const side = d.fork().jump(pick(face.tile(5, -6), '+x'));
+  side.hall(3);
+  side.bridge(6);
+  const hut = side.room(5, 7);
+  c.key(...hut.tile(3, 0)).mob('rock', ...hut.tile(2, 2), { range: 3 }).gold(...hut.tile(4, -2), 25);
+  d.hall(3);
+  const barred = d.hall(6);
+  gate(c, barred, 3);
+  d.turn('+x');
+  const ledge = d.ledge(12, { width: 2 });
+  c.mob('goblin', ...ledge.tile(4, 0), { range: 4 }).mob('goblin', ...ledge.tile(9, 1), { range: 4 });
+  // Down the shaft on the cage.
+  d.shaft(4, { period: 7 });
+  d.hall(3);
+  const sorting = d.room(9, 9);
+  c.mob('rock', ...sorting.tile(3, -2), { range: 5 }).mob('rock', ...sorting.tile(6, 2), { range: 5 }).mob('rat', ...sorting.tile(4, 3), { range: 5 });
+  c.potion(...sorting.tile(7, -3));
+  d.turn('+z');
+  // The spoil chute.
+  d.chute(10, 3);
+  const spoil = d.room(9, 9);
+  c.mob('rock', ...spoil.tile(3, 2), { range: 5 }).mob('rock', ...spoil.tile(6, -2), { range: 5 }).mob('goblin', ...spoil.tile(4, 0), { range: 5 });
+  c.gold(...spoil.tile(7, 3), 20);
+  d.hall(3);
+  d.turn('-x');
+  const span = d.bridge(8);
+  c.mob('bat', ...span.tile(3, 0), { path: [span.tile(1, 2), span.tile(6, -2)] });
+  const store = d.room(7, 7);
+  c.mob('goblin', ...store.tile(3, 0), { range: 4 }).mob('bat', ...store.tile(4, 2), { path: [store.tile(1, -2), store.tile(5, 2)] });
+  d.stairs(4, 2);
+  d.turn('+z');
+  // The gauntlet: presses and spikes.
+  const gauntlet = d.hall(10);
+  c.crusher(...across(gauntlet, 2, { period: 2.2 }));
+  c.spike(...across(gauntlet, 5, { period: 2 }));
+  c.crusher(...across(gauntlet, 8, { period: 2.2, phase: 1.1 }));
+  // The great quarry floor.
+  const floor = d.room(11, 11);
+  for (const [a, b] of [[2, -3], [5, 3], [8, -2]]) c.pillar(...floor.tile(a, b), 1.4);
+  c.mob('rock', ...floor.tile(3, 1), { range: 6 }).mob('rock', ...floor.tile(6, -2), { range: 6 }).mob('rock', ...floor.tile(9, 2), { range: 6 });
+  c.chest(...floor.tile(9, -4), 80).potion(...floor.tile(1, 4));
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
+const HATCHERY = {
+  tiles: ['#b09468', '#9a8058', '#7a5a38', '#8a7254'], walls: ['#7a6244', '#6a5438', '#54402a', '#634e36'],
+  ambient: [0.54, 0.42, 0.3], trap: '#5a3a1a', lift: '#a08660',
+};
+
+function hatchery() {
+  const c = new Dungeon({ name: 'The Hatchery', depth: 7, cols: 100, rows: 108, palette: HATCHERY, intro: 'Warm, and quiet, and something down here is about to hatch.' });
+  c.room(2, 4, 5, 5, 72, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 72, heading: '+x' });
+  d.hall(5);
+  // The nursery: the little things it keeps.
+  const nursery = d.room(9, 9);
+  c.mob('slime', ...nursery.tile(1, -3), { path: loop(nursery, 1) });
+  c.mob('rat', ...nursery.tile(4, 2), { range: 5 }).mob('rat', ...nursery.tile(6, -2), { range: 5 });
+  c.gold(...nursery.tile(7, 3), 15);
+  d.stairs(4, 2);
+  const warmway = d.hall(8);
+  c.spike(...across(warmway, 3, { period: 2.2 }));
+  c.spike(...across(warmway, 6, { period: 2.2, phase: 1.1 }));
+  const warm = d.room(7, 7);
+  c.mob('goblin', ...warm.tile(2, 2), { range: 4 }).mob('goblin', ...warm.tile(5, -2), { range: 4 });
+  d.turn('+z');
+  d.hall(4);
+  d.ferry(9, { period: 6 });
+  // The brood hall.
+  const brood = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [6, 2]]) c.pillar(...brood.tile(a, b), 0.8);
+  c.mob('slime', ...brood.tile(1, -3), { path: loop(brood, 1, 0, 5) });
+  c.mob('slime', ...brood.tile(5, 3), { path: loop(brood, 1, 4, 9).reverse() });
+  c.mob('rock', ...brood.tile(4, 0), { range: 4 });
+  c.potion(...brood.tile(7, -3));
+  // The key: through the side of the brood hall, over the dark.
+  const side = d.fork().jump(pick(brood.tile(4, -5), '+x'));
+  side.hall(3);
+  const reach = side.bridge(7);
+  c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
+  const keep = side.room(5, 7);
+  c.key(...keep.tile(3, 0)).mob('rat', ...keep.tile(1, -2), { range: 3 }).mob('rat', ...keep.tile(4, 2), { range: 3 });
+  c.gold(...keep.tile(2, 2), 25);
+  d.hall(3);
+  const barred = d.hall(6);
+  gate(c, barred, 3);
+  d.turn('+x');
+  const ledge = d.ledge(12, { width: 2 });
+  c.mob('goblin', ...ledge.tile(4, 0), { range: 4 }).mob('goblin', ...ledge.tile(9, 1), { range: 4 });
+  d.stairs(5, 2.5);
+  // The shell yard: old shells, and stones that move.
+  const yard = d.room(9, 9);
+  c.mob('rock', ...yard.tile(3, -2), { range: 5 }).mob('rock', ...yard.tile(6, 2), { range: 5 });
+  c.mob('bat', ...yard.tile(4, 0), { path: loop(yard, 2) });
+  c.chest(...yard.tile(7, -3), 70);
+  d.turn('+z');
+  const press = d.hall(10);
+  c.crusher(...across(press, 3, { period: 2.4 }));
+  c.crusher(...across(press, 7, { period: 2.4, phase: 1.2 }));
+  d.chute(8, 3);
+  // The straw warren.
+  const straw = d.room(9, 9);
+  c.mob('slime', ...straw.tile(1, -3), { path: loop(straw, 1) });
+  c.mob('goblin', ...straw.tile(4, 2), { range: 5 }).mob('rat', ...straw.tile(6, -2), { range: 5 });
+  c.gold(...straw.tile(7, 3), 20);
+  d.hall(3);
+  d.turn('-x');
+  const span = d.bridge(10);
+  c.mob('bat', ...span.tile(3, 0), { path: [span.tile(1, 2), span.tile(6, -2)] });
+  c.mob('bat', ...span.tile(8, 0), { path: [span.tile(6, -2), span.tile(9, 2)] });
+  const ante = d.room(7, 7);
+  c.mob('goblin', ...ante.tile(3, 0), { range: 4 });
+  c.potion(...ante.tile(1, 2)).potion(...ante.tile(5, -2));
+  d.turn('+z');
+  d.stairs(5, 2.5);
+  d.hall(4);
+  // The nest: straw and gold heaped round the walls, and Eggdreessen in the middle of the way out.
+  const nest = d.room(15, 13);
+  for (const [a, b] of [[3, -4], [3, 4], [8, -4], [8, 4]]) c.pillar(...nest.tile(a, b), 0.8);
+  for (const [a, b] of [[1, -5], [2, 5], [6, -6], [7, 6], [11, -5], [12, 5]]) c.gold(...nest.tile(a, b), 25);
+  c.chest(...nest.tile(13, -5), 110).chest(...nest.tile(13, 5), 110);
+  c.mob('egg', ...nest.tile(11, 0), { range: 3, facing: Math.PI });
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
 const FORGE = {
   tiles: ['#6a6460', '#5a5450', '#4a3a30', '#3e3a38'], walls: ['#4a4442', '#3e3936', '#33281f', '#34302e'],
   ambient: [0.5, 0.36, 0.3], trap: '#4a2418', lift: '#6e6662',
@@ -400,7 +653,7 @@ function lavaRoom(c, d, length, width, keep, { below = 0.6 } = {}) {
 }
 
 function forge() {
-  const c = new Dungeon({ name: 'The Forge', depth: 5, cols: 155, rows: 123, palette: FORGE, intro: 'Rivers of fire, and the hammers of the deep. Stay on the stone.' });
+  const c = new Dungeon({ name: 'The Forge', depth: 8, cols: 155, rows: 123, palette: FORGE, intro: 'Rivers of fire, and the hammers of the deep. Stay on the stone.' });
   c.room(2, 4, 5, 5, 80, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 80, heading: '+x' });
@@ -495,7 +748,7 @@ const LAIR = {
 };
 
 function lair() {
-  const c = new Dungeon({ name: "The Dragon's Lair", depth: 6, cols: 83, rows: 130, palette: LAIR, intro: 'At the bottom of everything, something large is asleep on the gold.' });
+  const c = new Dungeon({ name: "The Dragon's Lair", depth: 9, cols: 83, rows: 130, palette: LAIR, intro: 'At the bottom of everything, something large is asleep on the gold.' });
   c.room(2, 4, 5, 5, 96, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 96, heading: '+x' });
@@ -581,7 +834,7 @@ function lair() {
   return c;
 }
 
-export const LEVELS = [crypt, catacombs, chasm, warrens, forge, lair];
+export const LEVELS = [crypt, catacombs, pits, chasm, warrens, quarry, hatchery, forge, lair];
 
 export function loadLevel(index) {
   return LEVELS[index]();
