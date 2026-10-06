@@ -399,8 +399,12 @@ export function createActors(GFX, dungeon, world, { killY }) {
       if (door.opening < 0) door.opening = time;
     },
 
-    /** Meshes to match the state, once a frame. */
-    sync(dt, time) {
+    /**
+     * Meshes to match the state, once a frame. Only the monsters within
+     * `reach` of `focus` (where the die is) move their limbs: the rest keep
+     * their last pose, out of sight or nearly.
+     */
+    sync(dt, time, { focus = null, reach = 15 } = {}) {
       for (const m of mobs) {
         const g = m.look.group;
         g.visible = !m.dead && !m.gone;
@@ -410,7 +414,8 @@ export function createActors(GFX, dungeon, world, { killY }) {
         let turn = m.heading - g.rotation.y;
         turn = Math.atan2(Math.sin(turn), Math.cos(turn));
         g.rotation.y += turn * Math.min(1, dt * 8);
-        m.look.animate(time + m.i * 1.37, m.moving);
+        if (focus && Math.hypot(m.x - focus.x, m.z - focus.z) > reach) continue;
+        m.look.animate(time + m.i * 1.37, m.moving, { chasing: m.chasing });
       }
       for (const h of crushers) {
         h.mesh.position.set((h.box.min[0] + h.box.max[0]) / 2, (h.box.min[1] + h.box.max[1]) / 2, (h.box.min[2] + h.box.max[2]) / 2);

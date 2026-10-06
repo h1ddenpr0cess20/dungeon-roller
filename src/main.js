@@ -2,8 +2,12 @@ import { createAudio } from './audio.js';
 import { createGame } from './game.js';
 import { createHud } from './hud.js';
 import { createInput } from './input.js';
+import { preload } from './models/library.js';
 import { createStage } from './stage.js';
 import { createStorage } from './storage.js';
+
+// The monsters are sculpted in code: start baking them before anything else.
+preload();
 
 const view = document.getElementById('view');
 const audio = createAudio();

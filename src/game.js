@@ -330,7 +330,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
     }
     if (top !== shown && state !== 'title') { shown = top; hud.roll(top); }
 
-    delve.actors.sync(dt, stage.time);
+    delve.actors.sync(dt, stage.time, { focus: delve.ball });
     for (const d of decor) d.update(stage.time);
     effects.update(dt);
     audio.rolling(state === 'play' && b.grounded ? Math.hypot(b.vx, b.vz) : 0, b.grounded);

@@ -27,7 +27,7 @@ const KEY = new GFX.Vector3(-0.3, 1, 0.6).normalize();
 /** How many torches near the die get a real light. The count is fixed, so the shaders never change. */
 const TORCH_LIGHTS = 4;
 
-async function createRenderer(preference) {
+export async function createRenderer(preference) {
   if (preference !== 'webgl' && typeof navigator !== 'undefined' && navigator.gpu) {
     const canvas = document.createElement('canvas');
     try {
@@ -46,7 +46,7 @@ async function createRenderer(preference) {
  * warm light low down from torches somewhere, a cold grey shaft from above.
  * Only ever seen in reflections.
  */
-function paintVault(width = 1024) {
+export function paintVault(width = 1024) {
   const height = width / 2;
   const c = document.createElement('canvas');
   c.width = width; c.height = height;

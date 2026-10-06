@@ -1,3 +1,7 @@
+import { CAST } from './models/cast/index.js';
+import { isBaked, ready } from './models/library.js';
+import { createModel } from './models/model.js';
+
 /**
  * What lives down there. Each kind has how it gets about — `walk` (pushed
  * over the floor like the die is, and after it when it comes near),
@@ -87,11 +91,52 @@ function wing(GFX, span, chord, mat, side = 1) {
   return m;
 }
 
+/** How finely the monsters on the board are meshed: half the grid of a close-up. */
+export const BOARD_DETAIL = 0.5;
+
 /**
- * A monster to look at, standing on (0, 0, 0) and facing +z. `animate(t,
- * moving)` makes it live; `body` is the part that turns to face the way it goes.
+ * A monster to look at, standing on (0, 0, 0) and facing +z (a flyer's
+ * (0, 0, 0) is its middle). `animate(t, moving)` makes it live; `body` is
+ * the part that turns to face the way it goes.
+ *
+ * Each is its sculpted model (`models/cast/`), baked in the background as
+ * the page loads; until its bake comes in, it isn't there. A kind with no
+ * sculpt yet is the old handful of plain shapes.
  */
 export function createMonsterMesh(GFX, kind) {
+  if (CAST[kind]) return createSculptedMesh(GFX, kind);
+  return createPlainMesh(GFX, kind);
+}
+
+function createSculptedMesh(GFX, kind) {
+  const group = new GFX.Group();
+  group.name = kind;
+  const body = new GFX.Group();
+  group.add(body);
+  let model = null;
+  const attach = () => {
+    model = createModel(GFX, CAST[kind], { detail: BOARD_DETAIL });
+    body.add(model.group);
+  };
+  if (isBaked(kind, BOARD_DETAIL)) attach();
+  else if (typeof window !== 'undefined') ready(kind, BOARD_DETAIL).then(attach);
+  let clip = 'idle', since = 0, last = 0;
+  return {
+    group,
+    body,
+    animate(t, moving, { chasing = false } = {}) {
+      if (!model) return;
+      const next = moving ? 'walk' : 'idle';
+      if (next !== clip) { clip = next; since = t; }
+      // Hurrying when it is after the die.
+      model.pose({ clip, t: t - since, time: t, speed: chasing ? 1 : 0.6 });
+      last = t;
+    },
+    get posedAt() { return last; },
+  };
+}
+
+function createPlainMesh(GFX, kind) {
   const group = new GFX.Group();
   group.name = kind;
   const body = new GFX.Group();
