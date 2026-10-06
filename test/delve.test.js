@@ -77,3 +77,15 @@ test('lava burns', () => {
   const out = roll(delve, ...lava, [0, 0], 1, (o) => o.outcome);
   assert.equal(out?.outcome, 'burnt');
 });
+
+test('let go of on level ground, the die stops where it is rather than sliding', () => {
+  const delve = createDelve(GFX, 0);
+  const b = delve.ball;
+  for (let t = 0; t < 0.5; t += STEP) stepDelve(delve, [0, 0], STEP);
+  b.vx = 1.2;
+  const x0 = b.x;
+  for (let t = 0; t < 1.5; t += STEP) stepDelve(delve, [0, 0], STEP);
+  assert.ok(Math.hypot(b.vx, b.vz) < 0.02, `still going at ${Math.hypot(b.vx, b.vz)}`);
+  assert.ok(b.x - x0 < 0.35, `slid ${b.x - x0}`);
+  assert.ok(delve.die.settled, 'and lies flat on a face');
+});

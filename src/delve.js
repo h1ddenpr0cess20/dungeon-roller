@@ -16,6 +16,9 @@ import { groundAxes } from './view.js';
 /** The physics runs at a fixed rate, whatever the frame rate. */
 export const STEP = 1 / 120;
 
+/** How hard the die grips level ground when nothing pushes it: below `below` tiles a second, `rate` of its speed a second goes. */
+export const GRIP = Object.freeze({ below: 1.6, rate: 7 });
+
 /** What each way of coming to grief costs the party, in hit points spread over them. */
 export const HARM = Object.freeze({
   fell: 6,
@@ -90,6 +93,16 @@ export function stepDelve(delve, push, dt = STEP, { live = true, moving = true }
   if (!moving) return out;
 
   const result = stepBall(ball, delve.world, push[0], push[1], dt);
+  // A d20 doesn't coast like a marble. Let go of it on level ground and it
+  // tips over a face or two and stops, rather than sliding on flat.
+  if (ball.grounded && !ball.on && Math.hypot(push[0], push[1]) < 0.05 && ball.ny > 0.97) {
+    const speed = Math.hypot(ball.vx, ball.vz);
+    if (speed < GRIP.below) {
+      const k = Math.max(0, 1 - GRIP.rate * dt);
+      ball.vx *= k;
+      ball.vz *= k;
+    }
+  }
   stepDie(delve.die, ball, delve.model, dt);
   out.impact = result.impact;
   if (!live) return out;
