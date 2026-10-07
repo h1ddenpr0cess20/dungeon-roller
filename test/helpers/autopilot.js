@@ -14,7 +14,7 @@ import { hammerAt, liftAt, spikesAt } from '../../src/actors.js';
 import { resolveBattle } from '../../src/battle.js';
 import { createDelve, HARM, putBack, STEP, stepDelve } from '../../src/delve.js';
 import { FALL_LIMIT } from '../../src/physics.js';
-import { createParty, heal, hurt, seeded, wiped } from '../../src/party.js';
+import { createParty, heal, hurt, revive, seeded, wiped } from '../../src/party.js';
 
 /** The furthest it will drop off a ledge: well short of a drop that hurts. */
 export const DROP = FALL_LIMIT * 0.6;
@@ -289,6 +289,7 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
     if (out.fight) {
       const result = resolveBattle({ roll: out.roll, monster: out.fight.stats });
       hurt(party, result.damage, random);
+      revive(party);
       fights.push({ kind: out.fight.kind, roll: out.roll, grade: result.grade, damage: result.damage });
       delve.actors.defeat(out.fight);
       b.vx = b.vz = 0;
@@ -297,14 +298,17 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
     if (out.hurt) {
       harms.push({ how: out.hurt, at: here(), time: +t.toFixed(1) });
       hurt(party, HARM[out.hurt], random);
+      revive(party);
     }
     for (const p of out.picked) {
       if (p.kind === 'potion') heal(party, p.amount);
+      if (p.kind === 'revive') { party.revives += 1; revive(party); }
       if (p.kind === 'key') replan();
     }
     if (out.outcome) {
       losses.push({ how: out.outcome, at: [b.x.toFixed(1), b.y.toFixed(1), b.z.toFixed(1)], wp, time: t.toFixed(1) });
       hurt(party, HARM[out.outcome], random);
+      revive(party);
       down = 1.7;
     }
   }

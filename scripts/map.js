@@ -4,7 +4,8 @@
  *
  *   .  floor     #  wall      ~  lava      E  the stairs down    S  start
  *   ^  spikes    X  crusher   |  door      k  key    $  gold or a chest
- *   +  potion    m  monster (walking)       o  monster (crawling or flying)
+ *   +  potion    !  revive potion           m  monster (walking)
+ *   o  monster (crawling or flying)
  *   L  lift (where it starts)
  */
 
@@ -33,7 +34,7 @@ for (let z = 0; z < level.rows; z++) {
 }
 if (!heights) {
   for (const l of level.lifts) grid[l.z][l.x] = 'L';
-  for (const p of level.pickups) grid[Math.floor(p.z)][Math.floor(p.x)] = { key: 'k', potion: '+' }[p.kind] ?? '$';
+  for (const p of level.pickups) grid[Math.floor(p.z)][Math.floor(p.x)] = { key: 'k', potion: '+', revive: '!' }[p.kind] ?? '$';
   for (const m of level.mobs) grid[Math.floor(m.z)][Math.floor(m.x)] = MONSTERS[m.kind].move === 'walk' ? 'm' : 'o';
 }
 grid[level.start.z][level.start.x] = 'S';

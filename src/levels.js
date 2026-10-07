@@ -156,6 +156,7 @@ function catacombs() {
   c.spike(...across(kw, 3, { period: 2.2, phase: 0.5 }));
   const vault = keyway.room(5, 7);
   c.key(...vault.tile(3, 0)).mob('skeleton', ...vault.tile(2, -2), { range: 4 }).gold(...vault.tile(4, 2), 20);
+  c.revive(...vault.tile(1, 2));
   d.stairs(4, 2);
   // The locked way on.
   const barred = d.hall(8);
@@ -243,6 +244,7 @@ function pits() {
   c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
   const cell = side.room(5, 7);
   c.key(...cell.tile(3, 0)).mob('slime', ...cell.tile(1, -2), { path: loop(cell, 1) }).gold(...cell.tile(4, 2), 20);
+  c.revive(...cell.tile(2, 0));
   d.hall(3);
   const barred = d.hall(6);
   gate(c, barred, 3);
@@ -342,6 +344,7 @@ function chasm() {
   c.mob('goblin', ...roost.tile(2, -3), { range: 6 }).mob('goblin', ...roost.tile(4, 3), { range: 6 }).mob('goblin', ...roost.tile(7, 0), { range: 6 });
   c.mob('bat', ...roost.tile(1, 0), { path: loop(roost, 1) });
   c.chest(...roost.tile(4, -4), 70).potion(...roost.tile(7, 4));
+  c.revive(...roost.tile(2, 4));
   d.hall(3);
   d.turn('+z');
   d.stairs(6, 3);
@@ -391,6 +394,7 @@ function warrens() {
   store.hall(5);
   const larder = store.room(7, 7);
   c.key(...larder.tile(4, 0)).mob('orc', ...larder.tile(3, 2), { range: 4 }).gold(...larder.tile(6, -3), 20);
+  c.revive(...larder.tile(1, 0));
   const gate1 = d.hall(6);
   gate(c, gate1, 3);
   d.stairs(5, 2.5);
@@ -511,6 +515,7 @@ function quarry() {
   side.bridge(6);
   const hut = side.room(5, 7);
   c.key(...hut.tile(3, 0)).mob('rock', ...hut.tile(2, 2), { range: 3 }).gold(...hut.tile(4, -2), 25);
+  c.revive(...hut.tile(1, -2));
   d.hall(3);
   const barred = d.hall(6);
   gate(c, barred, 3);
@@ -591,6 +596,7 @@ function hatchery() {
   c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
   const keep = side.room(5, 7);
   c.key(...keep.tile(3, 0)).mob('rat', ...keep.tile(1, -2), { range: 3 }).mob('rat', ...keep.tile(4, 2), { range: 3 });
+  c.revive(...keep.tile(3, -2));
   c.gold(...keep.tile(2, 2), 25);
   d.hall(3);
   const barred = d.hall(6);
@@ -622,6 +628,7 @@ function hatchery() {
   const ante = d.room(7, 7);
   c.mob('goblin', ...ante.tile(3, 0), { range: 4 });
   c.potion(...ante.tile(1, 2)).potion(...ante.tile(5, -2));
+  c.revive(...ante.tile(3, 2));
   d.turn('+z');
   d.stairs(5, 2.5);
   d.hall(4);
@@ -715,6 +722,7 @@ function forge() {
   c.lava(slag.x - 3, slag.z, 9, slag.d, d.h - 0.8, { fill: true });
   const landing = d.room(7, 7);
   c.mob('orc', ...landing.tile(4, 0), { range: 4 }).potion(...landing.tile(1, -3), 10);
+  c.revive(...landing.tile(1, 3));
   d.hall(3);
   d.turn('+x');
   // Stepping stones: a path a tile wide, winding through the lava.
@@ -771,6 +779,7 @@ function lair() {
   const keep = side.room(7, 7);
   c.key(...keep.tile(4, 0)).mob('skeleton', ...keep.tile(2, 2), { range: 4 }).mob('skeleton', ...keep.tile(5, -2), { range: 4 });
   c.potion(...keep.tile(1, -3), 10);
+  c.revive(...keep.tile(1, 3));
   c.gold(...keep.tile(6, 3), 30);
   const bar = d.hall(6);
   gate(c, bar, 3);
@@ -819,6 +828,7 @@ function lair() {
   const ante = d.room(9, 9);
   c.mob('orc', ...ante.tile(3, -2), { range: 5 }).mob('orc', ...ante.tile(6, 2), { range: 5 });
   c.potion(...ante.tile(1, 4)).potion(...ante.tile(8, -4));
+  c.revive(...ante.tile(8, 4));
   d.hall(3);
   d.turn('+z');
   d.ferry(9, { period: 7 });

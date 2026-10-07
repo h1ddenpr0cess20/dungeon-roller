@@ -4,6 +4,8 @@
  * in front and takes the most, the mage hangs back. When every one of them
  * is down, the delve is over.
  *
+ * Revive potions are carried, and one is drunk the moment anyone falls.
+ *
  * Harm is dealt a point at a time to a living hero picked by weight, from
  * whatever random source is passed in, so the tests can deal it the same way
  * every time.
@@ -29,7 +31,7 @@ export function seeded(seed = 1) {
 }
 
 export function createParty() {
-  return { heroes: HEROES.map((h) => ({ id: h.id, name: h.name, hp: h.hp, max: h.hp, weight: h.weight })) };
+  return { heroes: HEROES.map((h) => ({ id: h.id, name: h.name, hp: h.hp, max: h.hp, weight: h.weight })), revives: 0 };
 }
 
 export const standing = (party) => party.heroes.filter((h) => h.hp > 0);
@@ -60,6 +62,23 @@ export function heal(party, amount) {
     if (h.hp <= 0) return 0;
     const gain = Math.min(amount, h.max - h.hp);
     h.hp += gain;
+    return gain;
+  });
+}
+
+/**
+ * A revive potion, if the party carries one and anyone is down: every
+ * fallen hero gets back up with half their hit points. Returns what each
+ * hero got back, or null if nothing was drunk.
+ */
+export function revive(party) {
+  if (!party.revives || !party.heroes.some((h) => h.hp <= 0)) return null;
+  party.revives -= 1;
+  return party.heroes.map((h) => {
+    if (h.hp > 0) return 0;
+    const back = Math.ceil(h.max / 2);
+    const gain = back - h.hp;
+    h.hp = back;
     return gain;
   });
 }

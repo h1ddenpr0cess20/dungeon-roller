@@ -218,6 +218,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
   const wood = new GFX.MeshStandardMaterial({ name: 'chest', color: new GFX.Color('#7a4a26'), roughness: 0.8 });
   const glass = new GFX.MeshStandardMaterial({ name: 'potion', color: new GFX.Color('#ff3d5a'), roughness: 0.15, emissive: new GFX.Color('#ff1030'), emissiveIntensity: 0.9 });
   const cork = new GFX.MeshStandardMaterial({ name: 'cork', color: new GFX.Color('#b08a5a'), roughness: 0.9 });
+  const elixir = new GFX.MeshStandardMaterial({ name: 'revive', color: new GFX.Color('#ffe9a8'), roughness: 0.1, emissive: new GFX.Color('#ffb830'), emissiveIntensity: 1.4 });
   const coin = new GFX.CylinderGeometry(0.075, 0.075, 0.025, 14);
   const pickups = dungeon.pickups.map((p) => {
     const mesh = new GFX.Group();
@@ -250,6 +251,17 @@ export function createActors(GFX, dungeon, world, { killY }) {
       const stop = new GFX.Mesh(new GFX.CylinderGeometry(0.045, 0.04, 0.05, 10), cork);
       stop.position.y = 0.34;
       spin.add(flask, neck, stop);
+    } else if (p.kind === 'revive') {
+      // A tall golden flask with a star for a stopper: a revive potion.
+      const flask = new GFX.Mesh(new GFX.SphereGeometry(0.1, 16, 12), elixir);
+      flask.scale.set(1, 1.35, 1);
+      flask.position.y = 0.15;
+      const neck = new GFX.Mesh(new GFX.CylinderGeometry(0.035, 0.04, 0.12, 10), elixir);
+      neck.position.y = 0.32;
+      const star = new GFX.Mesh(new GFX.IcosahedronGeometry(0.055, 0), gold);
+      star.position.y = 0.42;
+      star.scale.set(1, 1.3, 0.6);
+      spin.add(flask, neck, star);
     } else if (p.kind === 'key') {
       const ring = new GFX.Mesh(new GFX.TorusGeometry(0.07, 0.022, 8, 18), gold);
       ring.position.y = 0.4;

@@ -3,7 +3,7 @@ import { DIE_SCALE, dieModel, reachBelow, showNumber } from './die.js';
 import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from './delve.js';
 import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
-import { createParty, heal, hurt, rest, seeded, wiped } from './party.js';
+import { createParty, heal, hurt, rest, revive, seeded, wiped } from './party.js';
 import { turn } from './physics.js';
 import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
 
@@ -136,10 +136,24 @@ export function createGame({ stage, hud, input, audio, storage }) {
     hud.level(delve.level);
     hud.gold(gold);
     hud.keys(0);
+    hud.revives(party.revives);
     hud.party(party);
     audio.wake();
     audio.descend();
     audio.startMusic(delve.level.depth);
+  }
+
+  /** If anyone is down and the party carries a revive potion, it is drunk now: every fallen hero gets back up. */
+  function drinkRevive() {
+    const got = revive(party);
+    if (!got) return false;
+    const b = delve.ball;
+    hud.party(party, got.map((g) => -g));
+    hud.revives(party.revives);
+    effects.sparkle(b.x, b.y, b.z, '#ffe08a');
+    audio.potion();
+    hud.banner('REVIVED!\nthe fallen get back up');
+    return true;
   }
 
   function harm(how) {
@@ -183,6 +197,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
       hud.party(party, took);
       hud.gold(gold);
       view.aim.zoom = playZoom;
+      drinkRevive();
       if (wiped(party)) return gameOver();
       enter('play');
       audio.startMusic(delve.level.depth);
@@ -248,6 +263,12 @@ export function createGame({ stage, hud, input, audio, storage }) {
         effects.sparkle(p.x, p.y, p.z, '#ff5a7a');
         audio.potion();
         hud.banner(`HEALING POTION\n+${p.amount} HP EACH`);
+      } else if (p.kind === 'revive') {
+        party.revives += 1;
+        hud.revives(party.revives);
+        effects.sparkle(p.x, p.y, p.z, '#ffe08a');
+        audio.potion();
+        if (!drinkRevive()) hud.banner('REVIVE POTION\nfor whoever falls');
       } else if (p.kind === 'key') {
         hud.keys(delve.keys);
         effects.sparkle(p.x, p.y, p.z, '#ffd23a');
@@ -319,6 +340,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
           putBack(delve);
           dieMesh.visible = true;
           hud.banner(null);
+          drinkRevive();
           if (wiped(party)) gameOver(); else enter('play');
         }
         break;

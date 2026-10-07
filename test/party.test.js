@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createParty, heal, HEROES, hurt, rest, seeded, standing, wiped } from '../src/party.js';
+import { HEROES, createParty, heal, hurt, rest, revive, seeded, standing, wiped } from '../src/party.js';
 
 test('four heroes, at their best', () => {
   const party = createParty();
@@ -41,4 +41,20 @@ test('a potion heals the standing, up to their best; a rest gets the fallen back
   rest(party);
   assert.equal(party.heroes[0].hp, Math.ceil(party.heroes[0].max / 2));
   assert.ok(party.heroes.every((h) => h.hp > 0 && h.hp <= h.max));
+});
+
+test('a revive potion is carried until someone falls, then gets every fallen hero back up with half their hit points', () => {
+  const party = createParty();
+  assert.equal(revive(party), null, 'nothing to drink');
+  party.revives = 1;
+  assert.equal(revive(party), null, 'nobody down: it is kept');
+  assert.equal(party.revives, 1);
+  party.heroes[0].hp = 0;
+  party.heroes[3].hp = -2;
+  const got = revive(party);
+  assert.equal(party.revives, 0);
+  assert.equal(party.heroes[0].hp, Math.ceil(party.heroes[0].max / 2));
+  assert.equal(party.heroes[3].hp, Math.ceil(party.heroes[3].max / 2));
+  assert.deepEqual(got.map((g) => g > 0), [true, false, false, true]);
+  assert.equal(revive(party), null, 'none left');
 });

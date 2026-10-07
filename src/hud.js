@@ -23,6 +23,7 @@ export function createHud(root, { onStart }) {
   const pauseEl = $('pause');
   const muteEl = $('mute');
   const partyEl = $('party');
+  const revivesEl = $('revives');
   const rollEl = $('roll');
   const mapEl = $('map');
   const ctx = mapEl.getContext('2d');
@@ -66,7 +67,7 @@ export function createHud(root, { onStart }) {
     }
     for (const p of delve.actors.pickups) {
       if (p.taken || !explored[Math.floor(p.z) * level.cols + Math.floor(p.x)]) continue;
-      ctx.fillStyle = p.kind === 'key' ? '#ffe680' : p.kind === 'potion' ? '#ff6a8a' : '#ffcf4a';
+      ctx.fillStyle = p.kind === 'key' ? '#ffe680' : p.kind === 'potion' ? '#ff6a8a' : p.kind === 'revive' ? '#fff4c0' : '#ffcf4a';
       ctx.fillRect(p.x * s - s / 2, p.z * s - s / 2, s, s);
     }
     ctx.fillStyle = '#ffffff';
@@ -119,6 +120,12 @@ export function createHud(root, { onStart }) {
     keys(n) {
       keysEl.textContent = n > 0 ? '⚷'.repeat(n) : '';
       keysEl.parentElement.classList.toggle('none', n === 0);
+    },
+
+    /** How many revive potions the party carries. */
+    revives(n) {
+      revivesEl.textContent = n > 0 ? '✚'.repeat(n) : '';
+      revivesEl.parentElement.classList.toggle('none', n === 0);
     },
 
     /** The party's hit points; `took`, if given, flashes what each hero just lost (or, negative, gained). */

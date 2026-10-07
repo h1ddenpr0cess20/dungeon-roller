@@ -124,6 +124,10 @@ Down there:
   shafts. They wait at each end.
 - **Portcullises.** Roll into one with a key and it lifts.
 - **Gold, chests, potions and keys.** Roll over them to pick them up.
+- **Revive potions.** The golden flasks. The party carries them (the
+  crosses in the top corner). The moment a hero falls, one is drunk, and
+  every fallen hero gets back up with half their hit points. It can save a
+  delve when a fight would otherwise wipe the party.
 
 The map in the corner shows what you have seen so far, and any monster near
 you.

@@ -66,9 +66,12 @@ html, body {
   color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
-.keyring { text-align: right; }
-.keyring.none { visibility: hidden; }
+.carried { display: grid; justify-items: end; gap: 4px; }
+.keyring, .vials { text-align: right; }
+.keyring.none, .vials.none { display: none; }
 #keys { font-size: 26px; color: var(--gold); letter-spacing: 0.1em; }
+/* Revive potions carried: a golden cross for each. */
+#revives { display: block; font-size: 22px; color: #ffe08a; letter-spacing: 0.12em; text-shadow: 0 0 10px rgba(255, 210, 120, 0.7), 0 2px 0 #000; }
 
 #map {
   position: fixed;
@@ -393,7 +396,7 @@ kbd {
 
 @media (max-width: 640px) {
   #top { padding-right: max(120px, calc(env(safe-area-inset-right) + 112px)); grid-template-columns: 1fr auto; }
-  .keyring { display: none; }
+  .carried { display: none; }
   #gold { font-size: 28px; }
   #level { font-size: 11px; }
   #map { max-width: 100px; max-height: 100px; }

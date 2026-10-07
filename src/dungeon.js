@@ -267,6 +267,12 @@ export class Dungeon {
     return this;
   }
 
+  /** A revive potion: carried, and drunk when a hero falls. */
+  revive(x, z) {
+    this.pickups.push({ kind: 'revive', x: x + 0.5, z: z + 0.5, amount: 1 });
+    return this;
+  }
+
   key(x, z) {
     this.pickups.push({ kind: 'key', x: x + 0.5, z: z + 0.5, amount: 1 });
     return this;
