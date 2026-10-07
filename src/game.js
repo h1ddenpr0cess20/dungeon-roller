@@ -221,15 +221,21 @@ export function createGame({ stage, hud, input, audio, storage }) {
     const before = party.heroes.map((h) => h.hp);
     const took = hurt(party, result.damage, random);
     const after = party.heroes.map((h) => h.hp);
-    gold += result.gold;
+    const left = delve.actors.wound(mob, result.hits);
+    if (!left) gold += result.gold;
     audio.stopMusic();
     audio.battle(result.grade);
     hud.banner(null);
-    battle.show({ monster: mob.stats, result, before, after }).then(() => {
-      delve.actors.defeat(mob);
-      effects.poof(mob.x, mob.y, mob.z, mob.stats.boss ? 2.5 : 1);
-      effects.coins(mob.x, mob.y, mob.z, Math.min(30, 6 + result.gold / 4));
-      audio.coin();
+    battle.show({ monster: mob.stats, result, before, after, left }).then(() => {
+      if (left) {
+        // Still standing: the blow throws the die clear.
+        const dx = b.x - mob.x, dz = b.z - mob.z, d = Math.hypot(dx, dz) || 1;
+        b.vx = (dx / d) * 6; b.vz = (dz / d) * 6;
+      } else {
+        effects.poof(mob.x, mob.y, mob.z, mob.stats.boss ? 2.5 : 1);
+        effects.coins(mob.x, mob.y, mob.z, Math.min(30, 6 + result.gold / 4));
+        audio.coin();
+      }
       hud.party(party, took);
       hud.gold(gold);
       view.aim.zoom = playZoom;

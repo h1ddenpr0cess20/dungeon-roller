@@ -296,6 +296,8 @@ export function createActors(GFX, dungeon, world, { killY }) {
       let touched = null;
       for (const m of mobs) {
         if (m.dead || m.gone) continue;
+        if (m.guard > 0) m.guard -= dt;
+        const open = !(m.guard > 0);
         const kind = m.stats;
         if (m.ball) {
           const b = m.ball;
@@ -328,7 +330,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
           m.moving = Math.hypot(b.vx, b.vz) > 0.3;
           m.x = b.x; m.y = b.y - kind.radius; m.z = b.z;
           if (b.y < killY) m.gone = true;
-          if (die && !touched) {
+          if (die && !touched && open) {
             const reach = die.r + kind.radius + 0.02;
             const ex = die.x - b.x, ey = die.y - b.y, ez = die.z - b.z;
             if (ex * ex + ey * ey + ez * ez < reach * reach) touched = m;
@@ -342,7 +344,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
           m.moving = true;
           if (kind.move === 'fly') m.y = m.flight;
           else m.y = dungeon.heightAt(x, z) ?? m.y;
-          if (die && !touched) {
+          if (die && !touched && open) {
             const centre = kind.move === 'fly' ? m.y : m.y + 0.2;
             const flat = Math.hypot(die.x - x, die.z - z);
             if (flat < die.r + kind.radius * (kind.move === 'fly' ? 1 : 0.8) && Math.abs(die.y - centre) < 0.65) touched = m;
@@ -358,6 +360,18 @@ export function createActors(GFX, dungeon, world, { killY }) {
         }
       }
       return touched;
+    },
+
+    /**
+     * The monster takes `hits`. A boss has hit points and shrugs off a
+     * blow it can stand, with a moment to itself before it can be struck
+     * again; anything else is gone with the first. Returns the hits left.
+     */
+    wound(mob, hits = 1) {
+      mob.hp = (mob.hp ?? mob.stats.hp ?? 1) - hits;
+      if (mob.hp > 0) { mob.guard = 1.5; return mob.hp; }
+      this.defeat(mob);
+      return 0;
     },
 
     /** The monster is beaten: it goes down (see `sync`), and is gone from the dungeon. */

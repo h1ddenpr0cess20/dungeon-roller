@@ -12,22 +12,31 @@ import { HEROES } from './party.js';
  *                    monster's power, and more the further under
  *   1                fumble: the monster gets in twice as hard
  *
+ * A boss never goes down for free: whatever the roll, short of a fumble, it
+ * lands at least a quarter of its power, and a roll under its DC costs a
+ * third more than it would from anything else.
+ *
+ * A boss has several hit points (`hp`): a critical lands two hits, a fumble
+ * none, anything else one, and the fight goes on until they are spent.
+ *
  * The party always wins the fight itself: losing is only ever running out
  * of hit points. The game only needs `damage` and `gold` back. (A full
  * turn-based system is kept aside in docs/battle-system.md.)
  */
 
 export function resolveBattle({ roll, monster }) {
-  const { dc, power, gold } = monster;
-  if (roll >= 20) return { roll, dc, grade: 'critical', damage: 0, gold: gold * 2 };
-  if (roll <= 1) return { roll, dc, grade: 'fumble', damage: power * 2, gold };
-  if (roll >= dc) return { roll, dc, grade: 'success', damage: Math.max(0, Math.ceil(power / 2) - (roll - dc)), gold };
-  return { roll, dc, grade: 'struggle', damage: Math.ceil(power / 2) + Math.ceil((dc - roll) / 3), gold };
+  const { dc, power, gold, boss } = monster;
+  const floor = boss ? Math.ceil(power / 4) : 0;
+  if (roll >= 20) return { roll, dc, grade: 'critical', damage: floor, hits: 2, gold: gold * 2 };
+  if (roll <= 1) return { roll, dc, grade: 'fumble', damage: power * 2, hits: 0, gold };
+  if (roll >= dc) return { roll, dc, grade: 'success', damage: Math.max(floor, Math.ceil(power / 2) - (roll - dc)), hits: 1, gold };
+  const under = Math.ceil(power / 2) + Math.ceil((dc - roll) / (boss ? 2 : 3));
+  return { roll, dc, grade: 'struggle', damage: boss ? Math.ceil(under * 4 / 3) : under, hits: 1, gold };
 }
 
 export const GRADES = Object.freeze({
-  critical: { title: 'CRITICAL!', line: 'A natural 20. The party cuts it down without a scratch.' },
-  success: { title: 'VICTORY', line: 'Over the DC: a clean fight.' },
+  critical: { title: 'CRITICAL!', line: 'A natural 20. The party cuts it down without a scratch.', boss: 'A natural 20. The boss falls, but not before it lands a blow.' },
+  success: { title: 'VICTORY', line: 'Over the DC: a clean fight.', boss: 'Over the DC, and still it hits back hard.' },
   struggle: { title: 'HARD-WON', line: 'Under the DC: the party wins, but it hurts.' },
   fumble: { title: 'FUMBLE!', line: 'A natural 1. It gets in twice before it goes down.' },
 });
@@ -78,8 +87,9 @@ export function createBattleScreen(root) {
     get open() { return done !== null; },
 
     /** `before` and `after` are each hero's hit points either side of the fight. */
-    show({ monster, result, before, after }) {
+    show({ monster, result, before, after, left = 0 }) {
       const grade = GRADES[result.grade];
+      const line = (monster.boss && grade.boss) || grade.line;
       $('.foe').textContent = monster.name;
       $('.boss').textContent = monster.boss ? 'the boss' : '';
       $('.d20').textContent = String(result.roll);
@@ -87,7 +97,7 @@ export function createBattleScreen(root) {
       $('.dc .value').textContent = String(result.dc);
       $('.grade').textContent = grade.title;
       $('.grade').dataset.grade = result.grade;
-      $('.line').textContent = grade.line;
+      $('.line').textContent = line;
       $('.heroes').replaceChildren(...HEROES.map((h, i) => {
         const li = document.createElement('li');
         const lost = before[i] - after[i];
@@ -98,7 +108,7 @@ export function createBattleScreen(root) {
         if (after[i] <= 0) li.classList.add('down');
         return li;
       }));
-      $('.loot').textContent = `+${result.gold} gold`;
+      $('.loot').textContent = left > 0 ? `${left} ${left === 1 ? 'hit' : 'hits'} to go` : `+${result.gold} gold`;
       el.hidden = false;
       el.classList.remove('pop');
       void el.offsetWidth;

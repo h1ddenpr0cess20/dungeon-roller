@@ -291,7 +291,7 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
       hurt(party, result.damage, random);
       revive(party);
       fights.push({ kind: out.fight.kind, roll: out.roll, grade: result.grade, damage: result.damage });
-      delve.actors.defeat(out.fight);
+      delve.actors.wound(out.fight, result.hits);
       b.vx = b.vz = 0;
       if (wiped(party)) return { finished: false, time: t, losses, harms, fights, party, stuck: 'party wiped' };
     }
