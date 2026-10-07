@@ -73,7 +73,7 @@ auto-battle. It is shelved. [docs/battle-system.md](docs/battle-system.md)
 covers its rules, what is left to do, and how to bring it back from the
 patch kept in `docs/battle-port/`.
 
-![A fight with an orc: a 5 against DC 13](docs/screenshots/battle.jpg)
+![A fight on the battle card: the roll against the DC](docs/screenshots/battle.jpg)
 
 ### The party
 
