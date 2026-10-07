@@ -296,8 +296,8 @@ button {
   color: inherit;
   cursor: pointer;
 }
-/* Descend: an iron plate edged in gold, the word cut into it, embers behind. */
-#start {
+/* Descend (and the fight's Continue): an iron plate edged in gold, the word cut into it, embers behind. */
+#start, #battle .go {
   position: relative;
   font-family: var(--display);
   font-size: 24px;
@@ -320,7 +320,8 @@ button {
   text-shadow: 0 0 10px rgba(255, 160, 60, 0.75), 0 2px 0 #000;
   animation: ember 2.4s ease-in-out infinite;
 }
-#start::before, #start::after {
+#battle .go { font-size: 18px; padding: 11px 36px 11px 44px; outline: none; }
+#start::before, #start::after, #battle .go::before, #battle .go::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -331,10 +332,10 @@ button {
   transform: rotate(45deg);
   box-shadow: 0 0 6px rgba(255, 180, 80, 0.8);
 }
-#start::before { left: 16px; }
-#start::after { right: 16px; }
-#start:hover { color: #fff1c8; box-shadow: inset 0 0 0 3px #0c0907, inset 0 0 0 4px rgba(217, 164, 65, 0.7), 0 0 0 1px #000, 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 48px rgba(255, 120, 40, 0.5); }
-#start:active { transform: translateY(2px); }
+#start::before, #battle .go::before { left: 16px; }
+#start::after, #battle .go::after { right: 16px; }
+#start:hover, #battle .go:hover, #battle .go:focus-visible { color: #fff1c8; box-shadow: inset 0 0 0 3px #0c0907, inset 0 0 0 4px rgba(217, 164, 65, 0.7), 0 0 0 1px #000, 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 48px rgba(255, 120, 40, 0.5); }
+#start:active, #battle .go:active { transform: translateY(2px); }
 @keyframes ember { 50% { box-shadow: inset 0 0 0 3px #0c0907, inset 0 0 0 4px rgba(217, 164, 65, 0.55), 0 0 0 1px #000, 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 44px rgba(255, 110, 30, 0.42); } }
 
 /* The depths: stones in the wall, a numeral cut in each; the ones not reached yet still dark. */
@@ -421,68 +422,132 @@ kbd {
   color: var(--ink);
 }
 
-/* The battle (battle.js). */
+/* The battle (battle.js): an iron plate edged in gold, like the title's, with the dungeon dark behind it and embers rising. */
 #battle {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 16px;
-  background: radial-gradient(ellipse at center, rgba(40, 8, 4, 0.35), rgba(0, 0, 0, 0.75));
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 50%, rgba(40, 10, 4, 0.35) 0%, rgba(0, 0, 0, 0.7) 75%, rgba(0, 0, 0, 0.9) 100%),
+    linear-gradient(to top, rgba(8, 4, 2, 0.9) 0%, rgba(8, 4, 2, 0) 45%);
 }
 #battle[hidden] { display: none; }
 #battle.pop .card { animation: slam 0.4s cubic-bezier(.2, 1.5, .4, 1); }
-@keyframes slam { from { transform: scale(1.4); opacity: 0; } }
+@keyframes slam { from { transform: scale(1.3); opacity: 0; } }
 #battle .card {
-  width: min(440px, 100%);
-  padding: 18px 22px 20px;
-  background: rgba(18, 12, 10, 0.94);
-  border: 1px solid rgba(255, 180, 120, 0.35);
-  border-radius: 6px;
-  box-shadow: 0 0 60px rgba(255, 90, 30, 0.25);
+  position: relative;
+  width: min(460px, 100%);
+  padding: 22px 28px 24px;
   text-align: center;
+  font-family: var(--display);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 140, 50, 0.1), rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0) 30%),
+    linear-gradient(180deg, #2a221e 0%, var(--iron) 50%, #0d0a08 100%);
+  border: 1px solid var(--old-gold);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 4px #0c0907,
+    inset 0 0 0 5px rgba(217, 164, 65, 0.4),
+    0 0 0 1px #000,
+    0 14px 40px rgba(0, 0, 0, 0.8),
+    0 0 60px rgba(255, 90, 30, 0.22);
 }
-#battle h2 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blood); }
-#battle .clash { display: flex; justify-content: center; align-items: center; gap: 22px; }
-#battle .roll, #battle .dc { display: grid; justify-items: center; gap: 4px; }
+/* A gold stud at each corner. */
+#battle .card::before, #battle .card::after, #battle .studs::before, #battle .studs::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--old-gold);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px rgba(255, 180, 80, 0.7);
+}
+#battle .card::before { top: 12px; left: 12px; }
+#battle .card::after { top: 12px; right: 12px; }
+#battle .studs::before { bottom: 12px; left: 12px; }
+#battle .studs::after { bottom: 12px; right: 12px; }
+/* The foe's name in gilt, as the title is. */
+#battle h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fff1c4 0%, #f2c862 34%, #b9781f 62%, #e8b04c 78%, #7a4612 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 #2a1406) drop-shadow(0 0 16px rgba(255, 120, 40, 0.4));
+}
+#battle .boss { display: block; margin-top: 4px; font-size: 12px; font-style: italic; letter-spacing: 0.4em; text-transform: lowercase; color: var(--blood); text-shadow: 0 0 10px rgba(226, 73, 58, 0.6); }
+#battle .boss:empty { display: none; }
+#battle .rule { display: flex; align-items: center; gap: 8px; margin: 10px auto 16px; max-width: 260px; }
+#battle .rule i { flex: 1; height: 2px; background: linear-gradient(90deg, rgba(217, 164, 65, 0), var(--old-gold) 40%, var(--old-gold) 60%, rgba(217, 164, 65, 0)); box-shadow: 0 1px 0 #000; }
+#battle .rule b { width: 7px; height: 7px; background: var(--old-gold); transform: rotate(45deg); }
+#battle .label { font-family: var(--display); font-size: 11px; letter-spacing: 0.3em; color: #c9a46a; }
+#battle .clash { display: flex; justify-content: center; align-items: center; gap: 24px; }
+#battle .roll, #battle .dc { display: grid; justify-items: center; gap: 6px; }
+/* The roll on the die's own face: the title's d20. */
 #battle .d20 {
   display: grid;
   place-content: center;
-  width: 92px; height: 84px;
-  padding-top: 8px;
-  font-size: 38px;
-  font-weight: 900;
-  color: #e7e0f7;
-  background: #3a3350;
-  clip-path: polygon(50% 0, 97% 28%, 97% 78%, 50% 100%, 3% 78%, 3% 28%);
+  width: 92px; height: 92px;
+  font-family: var(--display);
+  font-size: 40px;
+  font-weight: 700;
+  color: #ffe6a6;
+  background: radial-gradient(circle at 40% 35%, #4a3a6a, #1e1630 70%);
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  text-shadow: 0 0 10px rgba(255, 210, 120, 0.8), 0 2px 0 #000;
+  font-variant-numeric: tabular-nums;
 }
-#battle .d20[data-grade="critical"] { color: #ffd479; background: #5a4520; }
-#battle .d20[data-grade="fumble"] { color: #ff7a5c; background: #4a1f22; }
-#battle .vs { font-size: 14px; color: var(--dim); letter-spacing: 0.2em; }
-#battle .dc .value { font-size: 34px; font-weight: 800; color: var(--ink); }
-#battle .grade { margin: 14px 0 2px; font-size: 26px; font-weight: 900; letter-spacing: 0.14em; }
-#battle .grade[data-grade="critical"] { color: #ffd479; }
-#battle .grade[data-grade="success"] { color: #8fe08a; }
-#battle .grade[data-grade="struggle"] { color: var(--torch); }
+#battle .d20[data-grade="critical"] { color: #fff4c8; background: radial-gradient(circle at 40% 35%, #8a6a2a, #3a2610 70%); }
+#battle .d20[data-grade="fumble"] { color: #ffb09a; background: radial-gradient(circle at 40% 35%, #6a2a2a, #2a1010 70%); }
+#battle .vs { font-style: italic; font-size: 16px; letter-spacing: 0.3em; color: #a8987e; }
+/* The DC cut in a stone, like the depths on the title. */
+#battle .dc .value {
+  display: grid;
+  place-content: center;
+  width: 78px; height: 70px;
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--old-gold);
+  background: linear-gradient(180deg, #3a332d, #26211d);
+  border: 1px solid #0c0a08;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, 0.12), inset 0 -2px 0 rgba(0, 0, 0, 0.45), 0 2px 0 #000;
+  text-shadow: 0 1px 0 #000;
+  font-variant-numeric: tabular-nums;
+}
+#battle .grade { margin: 18px 0 4px; font-size: 30px; font-weight: 700; letter-spacing: 0.18em; text-shadow: 0 2px 0 #000, 0 0 18px currentColor; }
+#battle .grade[data-grade="critical"] { color: #ffdc7a; }
+#battle .grade[data-grade="success"] { color: #b8dc8a; }
+#battle .grade[data-grade="struggle"] { color: var(--ember); }
 #battle .grade[data-grade="fumble"] { color: var(--blood); }
-#battle .line { margin: 0 0 14px; font-size: 12px; color: var(--dim); }
-#battle .heroes { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 5px; font-size: 13px; }
-#battle .heroes li { display: grid; grid-template-columns: 64px 1fr 48px 64px; align-items: center; gap: 8px; text-align: left; }
-#battle .heroes .hp { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
-#battle .heroes .lost { color: var(--blood); font-weight: 800; }
-#battle .heroes li.down { opacity: 0.5; }
-#battle .loot { margin: 0 0 14px; color: var(--gold); font-weight: 800; letter-spacing: 0.1em; }
-#battle .go {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.25em;
-  padding: 10px 26px;
-  background: var(--torch);
-  color: #1a100a;
-  border: 0;
-  border-radius: 3px;
-  box-shadow: 0 3px 0 #6a2a12;
+#battle .line { margin: 0 0 16px; font-size: 13px; font-style: italic; letter-spacing: 0.06em; color: #a8987e; }
+#battle .heroes {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(217, 164, 65, 0.2);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
 }
+#battle .heroes li { display: grid; grid-template-columns: 70px 1fr 50px 64px; align-items: center; gap: 10px; text-align: left; }
+#battle .heroes b { font-weight: 700; letter-spacing: 0.06em; }
+#battle .heroes .hp { text-align: right; color: #a8987e; font-variant-numeric: tabular-nums; }
+#battle .heroes .lost { color: var(--blood); font-weight: 700; letter-spacing: 0.05em; }
+#battle .heroes li.down { opacity: 0.5; }
+#battle .heroes li.down b { text-decoration: line-through; }
+#battle .bar { height: 8px; background: #0c0907; border: 1px solid rgba(217, 164, 65, 0.3); border-radius: 1px; }
+#battle .loot { margin: 0 0 18px; font-size: 18px; font-weight: 700; letter-spacing: 0.16em; color: var(--gold); text-shadow: 0 0 12px rgba(255, 190, 70, 0.55), 0 2px 0 #000; }
 
 #mute {
   position: fixed;

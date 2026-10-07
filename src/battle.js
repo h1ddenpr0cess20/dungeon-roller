@@ -43,8 +43,12 @@ export function createBattleScreen(root) {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-label', 'Battle');
   el.innerHTML = `
+    <div class="embers" aria-hidden="true">${'<i></i>'.repeat(18)}</div>
     <div class="card">
+      <span class="studs" aria-hidden="true"></span>
       <h2 class="foe"></h2>
+      <span class="boss"></span>
+      <div class="rule" aria-hidden="true"><i></i><b></b><i></i></div>
       <div class="clash">
         <div class="roll"><span class="d20"></span><span class="label">your roll</span></div>
         <div class="vs">vs</div>
@@ -76,7 +80,8 @@ export function createBattleScreen(root) {
     /** `before` and `after` are each hero's hit points either side of the fight. */
     show({ monster, result, before, after }) {
       const grade = GRADES[result.grade];
-      $('.foe').textContent = monster.name + (monster.boss ? ' — the boss' : '');
+      $('.foe').textContent = monster.name;
+      $('.boss').textContent = monster.boss ? 'the boss' : '';
       $('.d20').textContent = String(result.roll);
       $('.d20').dataset.grade = result.grade;
       $('.dc .value').textContent = String(result.dc);
