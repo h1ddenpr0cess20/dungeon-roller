@@ -87,7 +87,7 @@ async function place(names, detail = 1) {
     scene.add(m.group);
   });
   state.radius = Math.max(total / 2, ...widths, ...boxes.map((b) => (b.max.y - b.min.y) * 0.62));
-  state.height = Math.max(...boxes.map((b) => (b.max.y + b.min.y) / 2));
+  state.height = Math.max(...boxes.map((b, i) => (b.max.y + b.min.y) / 2 + models[i].group.position.y));
 }
 
 const bar = document.getElementById('bar');
