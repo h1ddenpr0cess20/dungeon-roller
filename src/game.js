@@ -5,7 +5,7 @@ import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
 import { BOARD_DETAIL, MONSTERS } from './monsters.js';
 import { readyAll } from './models/library.js';
-import { createParty, heal, hurt, rest, revive, seeded, wiped } from './party.js';
+import { createParty, grant, heal, hurt, rest, revive, rollBonus, seeded, wiped } from './party.js';
 import { turn } from './physics.js';
 import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
 
@@ -217,16 +217,18 @@ export function createGame({ stage, hud, input, audio, storage }) {
     enter('battle');
     playZoom = view.aim.zoom;
     view.aim.zoom = FIGHT_ZOOM;
-    const result = resolveBattle({ roll, monster: mob.stats });
+    const result = resolveBattle({ roll, monster: mob.stats, bonus: rollBonus(party) });
     const before = party.heroes.map((h) => h.hp);
     const took = hurt(party, result.damage, random);
-    const after = party.heroes.map((h) => h.hp);
     const left = delve.actors.wound(mob, result.hits);
+    const xp = left ? 0 : Math.ceil(result.gold / 2);
     if (!left) gold += result.gold;
+    const levels = left ? party.heroes.map(() => 0) : grant(party, xp);
+    const after = party.heroes.map((h) => h.hp);
     audio.stopMusic();
     audio.battle(result.grade);
     hud.banner(null);
-    battle.show({ monster: mob.stats, result, before, after, left }).then(() => {
+    battle.show({ monster: mob.stats, result, before, after, left, party, levels, xp, bonus: rollBonus(party) }).then(() => {
       if (left) {
         // Still standing: the blow throws the die clear.
         const dx = b.x - mob.x, dz = b.z - mob.z, d = Math.hypot(dx, dz) || 1;

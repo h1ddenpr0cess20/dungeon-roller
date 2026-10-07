@@ -58,3 +58,32 @@ test('a revive potion is carried until someone falls, then gets every fallen her
   assert.deepEqual(got.map((g) => g > 0), [true, false, false, true]);
   assert.equal(revive(party), null, 'none left');
 });
+
+test('heroes level up on experience: more hit points, healed on the spot, and the fallen earn nothing', async () => {
+  const { grant, rollBonus, xpToNext, MAX_LEVEL } = await import('../src/party.js');
+  const party = createParty();
+  hurt(party, 10, seeded(2));
+  party.heroes[3].hp = 0;
+  const hp = party.heroes.map((h) => h.hp);
+  const gained = grant(party, xpToNext(1));
+  assert.deepEqual(gained, [1, 1, 1, 0]);
+  assert.equal(party.heroes[3].level, 1);
+  for (const [i, h] of party.heroes.slice(0, 3).entries()) {
+    assert.equal(h.level, 2);
+    assert.ok(h.max > HEROES[i].hp);
+    assert.equal(h.hp, hp[i] + (h.max - HEROES[i].hp));
+  }
+  grant(party, 100000);
+  assert.equal(party.heroes[0].level, MAX_LEVEL);
+  assert.equal(rollBonus(createParty()), 0);
+  assert.ok(rollBonus(party) === 0 || rollBonus(party) >= 1);
+});
+
+test('a level bonus nudges the roll, but never past a natural 20 or 1', async () => {
+  const { resolveBattle } = await import('../src/battle.js');
+  const { MONSTERS } = await import('../src/monsters.js');
+  const monster = MONSTERS.skeleton;
+  assert.equal(resolveBattle({ roll: monster.dc - 1, monster, bonus: 1 }).grade, 'success');
+  assert.equal(resolveBattle({ roll: 1, monster, bonus: 3 }).grade, 'fumble');
+  assert.equal(resolveBattle({ roll: 19, monster, bonus: 3 }).grade, 'success');
+});

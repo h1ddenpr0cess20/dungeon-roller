@@ -15,15 +15,15 @@ import { BUILT, standUp } from './models/looks.js';
  */
 
 export const MONSTERS = Object.freeze({
-  rat: { name: 'Giant Rat', move: 'walk', dc: 6, power: 3, gold: 4, radius: 0.26, speed: 4.2 },
-  skeleton: { name: 'Skeleton', move: 'walk', dc: 10, power: 5, gold: 12, radius: 0.32, speed: 3 },
-  goblin: { name: 'Goblin', move: 'walk', dc: 9, power: 4, gold: 10, radius: 0.3, speed: 3.8 },
-  orc: { name: 'Orc Brute', move: 'walk', dc: 13, power: 6, gold: 25, radius: 0.4, speed: 2.6 },
-  slime: { name: 'Slime', move: 'crawl', dc: 8, power: 4, gold: 8, radius: 0.42, speed: 1.4 },
+  rat: { name: 'Giant Rat', move: 'walk', dc: 7, power: 4, gold: 4, radius: 0.26, speed: 4.2 },
+  skeleton: { name: 'Skeleton', move: 'walk', dc: 11, power: 7, gold: 12, radius: 0.32, speed: 3 },
+  goblin: { name: 'Goblin', move: 'walk', dc: 10, power: 6, gold: 10, radius: 0.3, speed: 3.8 },
+  orc: { name: 'Orc Brute', move: 'walk', dc: 14, power: 9, gold: 25, radius: 0.4, speed: 2.6 },
+  slime: { name: 'Slime', move: 'crawl', dc: 9, power: 5, gold: 8, radius: 0.42, speed: 1.4 },
   egg: { name: 'Eggdreessen', move: 'walk', dc: 17, power: 10, gold: 200, radius: 0.8, speed: 1.2, boss: true, hp: 3 },
-  rock: { name: 'Boulder', move: 'walk', dc: 12, power: 5, gold: 16, radius: 0.4, speed: 2.2 },
-  bat: { name: 'Cave Bat', move: 'fly', dc: 7, power: 2, gold: 5, radius: 0.28, speed: 2.4 },
-  wraith: { name: 'Wraith', move: 'fly', dc: 14, power: 6, gold: 30, radius: 0.34, speed: 1.8 },
+  rock: { name: 'Boulder', move: 'walk', dc: 13, power: 7, gold: 16, radius: 0.4, speed: 2.2 },
+  bat: { name: 'Cave Bat', move: 'fly', dc: 8, power: 3, gold: 5, radius: 0.28, speed: 2.4 },
+  wraith: { name: 'Wraith', move: 'fly', dc: 15, power: 9, gold: 30, radius: 0.34, speed: 1.8 },
   dragon: { name: 'Red Dragon', move: 'walk', dc: 18, power: 14, gold: 250, radius: 0.85, speed: 1.4, boss: true, hp: 4 },
 });
 
