@@ -427,7 +427,9 @@ export function createActors(GFX, dungeon, world, { killY }) {
         turn = Math.atan2(Math.sin(turn), Math.cos(turn));
         g.rotation.y += turn * Math.min(1, dt * 8);
         if (focus && Math.hypot(m.x - focus.x, m.z - focus.z) > reach) continue;
-        m.look.animate(time + m.i * 1.37, m.moving, { chasing: m.chasing });
+        // How fast it really goes over the ground (a boulder rolls by it).
+        const pace = m.ball ? Math.hypot(m.ball.vx, m.ball.vz) : undefined;
+        m.look.animate(time + m.i * 1.37, m.moving, { chasing: m.chasing, pace });
       }
       for (const h of crushers) {
         h.mesh.position.set((h.box.min[0] + h.box.max[0]) / 2, (h.box.min[1] + h.box.max[1]) / 2, (h.box.min[2] + h.box.max[2]) / 2);

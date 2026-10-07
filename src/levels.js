@@ -552,7 +552,7 @@ const QUARRY = {
 };
 
 function quarry() {
-  const c = new Dungeon({ name: 'The Quarry', depth: 7, cols: 100, rows: 106, palette: QUARRY, intro: 'They cut stone here, until some of the stone got up and walked off.' });
+  const c = new Dungeon({ name: 'The Quarry', depth: 7, cols: 100, rows: 106, palette: QUARRY, intro: 'They cut stone here, until some of the stone broke loose and came rolling after them.' });
   c.room(2, 4, 5, 5, 80, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 80, heading: '+x' });

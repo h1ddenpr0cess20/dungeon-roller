@@ -94,7 +94,7 @@ Gold is the score, and the title screen keeps the best.
 | The Chasm | 4 | Platforms that ferry you across the gaps, platforms that sink down shafts, a zig-zag bridge one tile wide, and a goblin roost. |
 | The Fungal Grotto | 5 | Mushroom stalks as tall as pillars, a crossing on a platform, a sewer chute, spikes in the drip, slimes, rats and goblins. |
 | The Goblin Warrens | 6 | Two gates and two keys, spike runs, a twisting burrow one tile wide, a fungus cavern, goblins, rats and orcs. |
-| The Quarry | 7 | Boulders that get up and stomp after you, stone presses, a cage down a shaft, a spoil chute, and goblin miners. |
+| The Quarry | 7 | Boulders that come rolling after you, stone presses, a cage down a shaft, a spoil chute, and goblin miners. |
 | The Hatchery | 8 | Warm straw, slimes and boulders in the brood halls, and at the bottom the nest of Eggdreessen, a giant cracked egg with something looking out. |
 | The Iron Halls | 9 | The orcs' fortress: two gates and two keys, stone presses, a cage down a shaft, boulders in the yard, a throne hall, and a last gauntlet. |
 | The Forge | 10 | Rooms flooded with lava with paths across them, a slag channel, stepping stones, crushers over a bridge, wraiths and orcs. |
@@ -105,8 +105,8 @@ Gold is the score, and the title screen keeps the best.
 
 Down there:
 
-- **Monsters.** Rats, skeletons, goblins, orc brutes and boulders walk. They
-  come for you when you get near and go home when you get away, and they
+- **Monsters.** Rats, skeletons, goblins and orc brutes walk, and boulders
+  roll, tumbling over and over the way they go. They come for you when you get near and go home when you get away, and they
   won't follow you off an edge. Slimes crawl a set loop. Bats and wraiths
   fly a loop, over gaps and all. A beaten monster drops its gold. Two bosses
   wait at the bottom of their levels: Eggdreessen in the Hatchery, and the
@@ -114,7 +114,7 @@ Down there:
   - The slime, the boulder and Eggdreessen come from three of our other
     projects:
     - the slime is [slimey](https://github.com/h1ddenpr0cess20/slimey)'s jelly orb
-    - the boulder is [rock](https://github.com/h1ddenpr0cess20/rock)'s granite
+    - the boulder is [rock](https://github.com/h1ddenpr0cess20/rock)'s granite, set rolling
     - Eggdreessen is [marc](https://github.com/h1ddenpr0cess20/marc)'s egg, gone bad
 
     Each was changed to fit the dungeon. The other monsters are sculpted in

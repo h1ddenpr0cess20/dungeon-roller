@@ -124,10 +124,10 @@ function createBuiltMesh(GFX, kind, seed) {
     group,
     body,
     look,
-    animate(t, moving, { chasing = false } = {}) {
+    animate(t, moving, { chasing = false, pace } = {}) {
       const next = moving ? 'walk' : 'idle';
       if (next !== clip) { clip = next; since = t; }
-      look.pose({ clip, t: t - since, time: t, speed: chasing ? 1 : 0.6 });
+      look.pose({ clip, t: t - since, time: t, speed: chasing ? 1 : 0.6, pace });
     },
   };
 }

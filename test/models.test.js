@@ -61,15 +61,27 @@ for (const [name, def] of Object.entries(CAST)) {
   });
 }
 
+/** The lowest vertex of everything under `group`, where it is in the world (a turned box's corners would dip lower than the thing does). */
+function lowest(group) {
+  let low = Infinity;
+  const v = new GFX.Vector3();
+  group.traverse((o) => {
+    const p = o.geometry?.attributes?.position;
+    if (!p || !o.visible) return;
+    for (let i = 0; i < p.count; i++) low = Math.min(low, v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).y);
+  });
+  return low;
+}
+
 for (const name of Object.keys(BUILT)) {
   test(`${name}: built from its own project, stands on the floor and poses through every clip`, () => {
     const look = standUp(GFX, name, { detail: 0.5 });
     for (const clip of ['idle', 'walk', 'attack', 'hit', 'ko']) {
       for (let t = 0; t <= 1; t += 1 / 30) look.pose({ clip, t, time: t, seed: 0, speed: 1 });
       look.group.updateMatrixWorld(true);
-      const box = new GFX.Box3().setFromObject(look.group);
-      for (const v of [box.min.x, box.min.y, box.max.y]) assert.ok(Number.isFinite(v), `${clip}: ${v}`);
-      if (clip !== 'attack') assert.ok(box.min.y > -0.15, `${clip}: dips to ${box.min.y}`);
+      const low = lowest(look.group);
+      assert.ok(Number.isFinite(low), `${clip}: ${low}`);
+      if (clip !== 'attack') assert.ok(low > -0.15, `${clip}: dips to ${low}`);
     }
   });
 }

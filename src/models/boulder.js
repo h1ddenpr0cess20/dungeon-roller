@@ -1,11 +1,15 @@
 /**
  * The rock monster: Rock's boulder (github.com/h1ddenpr0cess20/rock, its
  * `boulder`), several tons of granite, brought down into the dungeon to
- * stomp about. The stone is Rock's own — an icosphere pushed out by layers
+ * roll after people. The stone is Rock's own — an icosphere pushed out by layers
  * of noise, sliced flat by a dozen cutting planes, its base ground level,
  * faceted, coloured grain by grain — with a face cut into it: two deep
  * sockets under a heavy brow with a glow of molten orange in each, and moss
  * where water runs off its top.
+ *
+ * It doesn't walk: it rolls. Going anywhere it tumbles over and over, as
+ * far round as it has come, riding up over its own flats so it never sinks
+ * into the floor; stopped, it rocks back onto its base to glare at you.
  *
  * `createBoulder` gives { group, pose(state) } like the other creatures.
  */
@@ -102,6 +106,56 @@ function stone(GFX, detail) {
   return geometry;
 }
 
+const hulls = new Map();
+
+/**
+ * The points of the stone that can ever be the lowest, however it lies:
+ * the outermost one in each of a few hundred directions. What it stands on
+ * is always one of these.
+ */
+function hull(geometry) {
+  if (hulls.has(geometry)) return hulls.get(geometry);
+  const p = geometry.attributes.position.array;
+  const keep = new Set();
+  const N = 400;
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (2 * (i + 0.5)) / N, r = Math.sqrt(1 - y * y), a = i * 2.399963;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    let best = -Infinity, at = 0;
+    for (let j = 0; j < p.length; j += 3) {
+      const d = p[j] * x + p[j + 1] * y + p[j + 2] * z;
+      if (d > best) { best = d; at = j; }
+    }
+    keep.add(at);
+  }
+  const points = new Float32Array(keep.size * 3);
+  [...keep].forEach((j, i) => points.set(p.subarray(j, j + 3), i * 3));
+  hulls.set(geometry, points);
+  return points;
+}
+
+/** The row vector r turned by a rotation of `a` about axis 0 (x), 1 (y) or 2 (z): r times that matrix. */
+function turnRow(r, axis, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  const [x, y, z] = r;
+  if (axis === 0) { r[1] = y * c + z * s; r[2] = -y * s + z * c; }
+  else if (axis === 1) { r[0] = x * c - z * s; r[2] = x * s + z * c; }
+  else { r[0] = x * c + y * s; r[1] = -x * s + y * c; }
+  return r;
+}
+
+/** How far out the stone's surface is along the direction `d`: the vertex nearest that line. */
+function socketDepth(geometry, d) {
+  const p = geometry.attributes.position.array, l = Math.hypot(...d);
+  let best = -Infinity, depth = 0.8;
+  for (let j = 0; j < p.length; j += 3) {
+    const r = Math.hypot(p[j], p[j + 1], p[j + 2]);
+    const c = (p[j] * d[0] + p[j + 1] * d[1] + p[j + 2] * d[2]) / (r * l);
+    if (c > best) { best = c; depth = r * c; }
+  }
+  return depth;
+}
+
 /** A spring, as Rock moves on: pulled to `to`, damped. */
 function spring(s, k, c, dt, to = 0) {
   s.v += (to - s.p) * k * dt - s.v * c * dt;
@@ -115,13 +169,17 @@ export function createBoulder(GFX, { size = 0.8, detail = 1, seed = 0 } = {}) {
   group.name = 'rock';
   const body = new GFX.Group();
   group.add(body);
+  // It rolls about its middle; `roller` is that middle.
+  const roller = new GFX.Group();
+  body.add(roller);
   const holder = new GFX.Group();
   holder.scale.setScalar(R);
-  holder.position.y = 0.87 * 0.94 * R;
-  body.add(holder);
+  roller.add(holder);
 
   const material = new GFX.MeshStandardMaterial({ name: 'granite', vertexColors: true, roughness: 0.92, metalness: 0.06, flatShading: true });
-  const mesh = new GFX.Mesh(stone(GFX, detail), material);
+  const geometry = stone(GFX, detail);
+  const points = hull(geometry);
+  const mesh = new GFX.Mesh(geometry, material);
   mesh.name = 'rock-body';
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -131,8 +189,10 @@ export function createBoulder(GFX, { size = 0.8, detail = 1, seed = 0 } = {}) {
   const glow = new GFX.MeshStandardMaterial({ name: 'rock-eye', color: new GFX.Color('#ffb070'), emissive: new GFX.Color('#ff6a10'), emissiveIntensity: 3 });
   const eyes = EYES.map((e, i) => {
     const m = i === 0 ? 1 : -1;
-    const eye = new GFX.Mesh(new GFX.SphereGeometry(0.1, 14, 10), glow);
-    eye.position.set(e[0] * 0.84, e[1] * 0.84 * 0.94, e[2] * 0.84);
+    const eye = new GFX.Mesh(new GFX.SphereGeometry(0.12, 14, 10), glow);
+    // Down in the socket: as deep as the stone is there, along the eye's line.
+    const deep = socketDepth(geometry, [e[0], e[1] * 0.94, e[2]]) + 0.01;
+    eye.position.set(e[0] * deep, e[1] * 0.94 * deep, e[2] * deep);
     eye.scale.set(1.15, 0.55, 0.6);
     eye.rotation.set(0, m * 0.36, m * -0.35);
     eye.castShadow = false;
@@ -141,59 +201,81 @@ export function createBoulder(GFX, { size = 0.8, detail = 1, seed = 0 } = {}) {
   });
 
   const sq = { p: 0, v: 0 }, tz = { p: 0, v: 0 }, tx = { p: 0, v: 0 }, ty = { p: 0, v: 0 };
-  let last = null, fidget = 2 + hash(seed, 1, 2) * 2, hopped = 0;
+  // How far over it has rolled, and how fast it is turning.
+  const spin = { p: 0, v: 0 };
+  let last = null, fidget = 2 + hash(seed, 1, 2) * 2, thumped = 0, wasRolling = false;
 
   return {
     group,
     body,
-    /** Stomps, sways and squashes it for `state` ({ clip, t, time, seed, speed }). */
-    pose({ clip = 'idle', t = 0, time = 0, seed: s = seed, speed = 1 }) {
+    /**
+     * Rolls, rocks and squashes it for `state` ({ clip, t, time, seed,
+     * speed, pace }): `pace` is how fast it is really going over the
+     * ground, in tiles a second; without it, a walk rolls at `speed`.
+     */
+    pose({ clip = 'idle', t = 0, time = 0, seed: s = seed, speed = 1, pace }) {
       const dt = last === null ? 0 : Math.min(0.05, Math.max(0, time - last));
       last = time;
       const T = time + s;
-      let lift = 0, lean = 0, roll = 0;
-      if (clip === 'walk') {
-        // A stomp at a time: up, tipped forward, down with a thud.
-        const f = (T * 2.4 * Math.max(0.5, speed)) % 1, n = Math.floor(T * 2.4 * Math.max(0.5, speed));
-        lift = Math.sin(Math.PI * Math.min(1, f / 0.55)) * 0.18 * (f < 0.55 ? 1 : 0);
-        lean = 0.12 * Math.sin(Math.PI * Math.min(1, f / 0.55)) * (f < 0.55 ? 1 : 0);
-        if (n !== hopped && f > 0.55) { hopped = n; sq.v += 3.2; tz.v += (hash(n, s, 3) - 0.5) * 2.4; }
-      } else if (clip === 'attack') {
-        // A leap, and the whole weight of it brought down.
-        const up = Math.min(1, t / 0.25), down = Math.max(0, Math.min(1, (t - 0.25) / 0.08));
-        lift = Math.sin(up * Math.PI * 0.5) * 0.5 * (1 - down);
-        lean = 0.35 * up * (1 - down) - 0.1 * down;
-        if (t > 0.33 && hopped !== -1) { hopped = -1; sq.v += 8; }
-        if (t < 0.05) hopped = 0;
+      let lift = 0, roll = 0, forward = 0;
+      const going = pace ?? (clip === 'walk' ? 1.6 * Math.max(0.5, speed) : 0);
+      const rolling = going > 0.05;
+      if (rolling) {
+        // As far round as it has come along the ground.
+        spin.v = going / R;
+        spin.p += spin.v * dt;
+        // Each time a new face comes down, a thud.
+        const face = Math.floor(spin.p / 1.1);
+        if (face !== thumped) { thumped = face; sq.v += 1.6 * Math.min(1.5, going); tz.v += (hash(face, s, 3) - 0.5) * 1.2; }
+      } else {
+        // Stopped: it rocks back onto its base, the short way round, and settles.
+        if (wasRolling) spin.p = Math.atan2(Math.sin(spin.p), Math.cos(spin.p));
+        spring(spin, 60, 7, dt);
+      }
+      wasRolling = rolling;
+      if (clip === 'attack') {
+        // Back a little, rocking on its heel; then it rolls in at you and slams.
+        const back = Math.min(1, t / 0.3), go = Math.max(0, Math.min(1, (t - 0.3) / 0.14)), home = Math.max(0, Math.min(1, (t - 0.6) / 0.4));
+        forward = (-0.12 * Math.sin(back * Math.PI * 0.5) * (1 - go) + 0.32 * go) * (1 - home * home * (3 - 2 * home));
+        lift = Math.sin(go * Math.PI) * 0.12;
+        if (go >= 1 && thumped !== -1) { thumped = -1; sq.v += 7; }
+        if (t < 0.05) thumped = 0;
       } else if (clip === 'hit') {
-        const h = Math.sin(Math.min(1, t / 0.4) * Math.PI);
-        lean = -0.3 * h;
+        // Knocked back a little way, rolling with it.
+        const h = Math.sin(Math.min(1, t / 0.45) * Math.PI);
+        forward = -0.14 * h;
         roll = Math.sin(t * 50) * 0.04 * h;
       } else if (clip === 'ko') {
         // Over onto its side, and the light goes out of its eyes.
         const f = Math.min(1, t / 0.5);
         roll = f * f * 1.35;
-        lift = -0.08 * f;
-      } else if (clip === 'idle') {
+      } else if (clip === 'idle' && !rolling) {
         fidget -= dt;
         if (fidget <= 0) {
           const r = hash(Math.floor(T), s, 5);
           if (r < 0.4) sq.v += 2.4;
           else if (r < 0.72) ty.v += (r < 0.56 ? -1 : 1) * 2.6;
-          else { tz.v += (r - 0.86) * 10; tx.v += 1.6; }
+          else { tz.v += (r - 0.86) * 10; spin.v -= 1.4; }
           fidget = 2.4 + hash(s, Math.floor(T), 9) * 4;
         }
       }
       spring(sq, 190, 11, dt);
-      spring(tz, 70, 6.5, dt, Math.sin(T * 1.05 * 2) * 0.055 + roll);
-      spring(tx, 70, 6.5, dt, lean);
+      spring(tz, 70, 6.5, dt, (rolling ? 0 : Math.sin(T * 1.05 * 2) * 0.055) + roll);
+      spring(tx, 70, 6.5, dt, 0);
       spring(ty, 40, 5, dt, 0);
-      const breathe = Math.sin(T * 1.25) * 0.008;
-      // Tipped over its edge, it is lifted so it lies on its side, not through the floor.
-      body.position.set(0, lift * R * 2 + 1.3 * R * (1 - Math.cos(tz.p)) + 0.5 * R * (1 - Math.cos(tx.p)), 0);
-      body.rotation.set(tx.p, ty.p, tz.p);
+      const breathe = rolling ? 0 : Math.sin(T * 1.25) * 0.008;
+      // A lunge or a knock back turns it as far as it goes.
+      const turned = spin.p + forward / R;
+      roller.rotation.set(turned, 0, 0);
       const k = sq.p * 0.09 + breathe;
-      holder.scale.set(R * (1 + k * 0.55), R * (1 - k), R * (1 + k * 0.55));
+      const sx = R * (1 + k * 0.55), sy = R * (1 - k);
+      holder.scale.set(sx, sy, sx);
+      body.rotation.set(tx.p, ty.p, tz.p);
+      // However it lies, its lowest point is on the floor (or `lift` above it).
+      const up = turnRow(turnRow(turnRow(turnRow([0, 1, 0], 0, tx.p), 1, ty.p), 2, tz.p), 0, turned);
+      let low = Infinity;
+      for (let i = 0; i < points.length; i += 3) low = Math.min(low, up[0] * points[i] * sx + up[1] * points[i + 1] * sy + up[2] * points[i + 2] * sx);
+      body.position.set(0, lift * R * 2 - low, forward);
       glow.emissiveIntensity = clip === 'ko' ? Math.max(0, 3 * (1 - t / 0.6)) : 3 + Math.sin(T * 3) * 0.6;
       for (const e of eyes) e.visible = glow.emissiveIntensity > 0.05;
     },
