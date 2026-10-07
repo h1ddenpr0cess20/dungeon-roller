@@ -1,4 +1,4 @@
-import { createMonsterMesh, FLIGHT, MONSTERS } from './monsters.js';
+import { createMonsterMesh, FLIGHT, KNOCKED_OUT, MONSTERS } from './monsters.js';
 import { collideBalls, createBall, PUSH, stepBall } from './physics.js';
 import { stoneTexture } from './scenery.js';
 import { isBaked, ready } from './models/library.js';
@@ -360,10 +360,10 @@ export function createActors(GFX, dungeon, world, { killY }) {
       return touched;
     },
 
-    /** The monster is beaten: gone from the dungeon. */
+    /** The monster is beaten: it goes down (see `sync`), and is gone from the dungeon. */
     defeat(mob) {
       mob.dead = true;
-      mob.look.group.visible = false;
+      mob.downAt = null;
     },
 
     /** Lift a portcullis, from `time`. */
@@ -379,7 +379,9 @@ export function createActors(GFX, dungeon, world, { killY }) {
     sync(dt, time, { focus = null, reach = 15 } = {}) {
       for (const m of mobs) {
         const g = m.look.group;
-        g.visible = !m.dead && !m.gone;
+        // Beaten, it goes down where it stood, and then it is gone.
+        if (m.dead && m.downAt === null) m.downAt = time;
+        g.visible = !m.gone && (!m.dead || time - m.downAt < KNOCKED_OUT);
         if (!g.visible) continue;
         g.position.set(m.x, m.y, m.z);
         // Turn to face the way it goes, the short way round.
@@ -387,9 +389,10 @@ export function createActors(GFX, dungeon, world, { killY }) {
         turn = Math.atan2(Math.sin(turn), Math.cos(turn));
         g.rotation.y += turn * Math.min(1, dt * 8);
         if (focus && Math.hypot(m.x - focus.x, m.z - focus.z) > reach) continue;
-        // How fast it really goes over the ground (a boulder rolls by it).
-        const pace = m.ball ? Math.hypot(m.ball.vx, m.ball.vz) : undefined;
-        m.look.animate(time + m.i * 1.37, m.moving, { chasing: m.chasing, pace });
+        // How fast it really goes over the ground (a boulder rolls by it), and whether the die is in its reach.
+        const pace = m.ball && !m.dead ? Math.hypot(m.ball.vx, m.ball.vz) : 0;
+        const striking = !m.dead && focus !== null && Math.hypot(m.x - focus.x, m.z - focus.z) < m.stats.radius + 1;
+        m.look.animate(time + m.i * 1.37, m.moving && !m.dead, { chasing: m.chasing, pace, striking, down: m.dead });
       }
       for (const h of crushers) {
         h.mesh.position.set((h.box.min[0] + h.box.max[0]) / 2, (h.box.min[1] + h.box.max[1]) / 2, (h.box.min[2] + h.box.max[2]) / 2);

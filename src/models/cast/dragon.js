@@ -59,8 +59,8 @@ export default {
   name: 'dragon',
   cell: 0.0175,
   // One of it, and it's the boss: it can have more to it than the rest.
-  budget: 16000,
-  cells: { eyes: 0.004, irises: 0.003, pupils: 0.0025, teeth: 0.0045, horns: 0.008, claws: 0.007, spikes: 0.009, wings: 0.012 },
+  budget: 20000,
+  cells: { eyes: 0.004, irises: 0.003, pupils: 0.0025, teeth: 0.0045, horns: 0.008, claws: 0.007, spikes: 0.009, wings: 0.0095 },
   ambient: 0.35,
   bones: [
     ['root', null, [0, 0, 0]],
@@ -190,7 +190,8 @@ export default {
         s.limb(W.elbow, W.wrist, 0.035, 0.028, { color: hide, mat: 'hide', bone: `wb${S}`, k: 0.015 });
         s.limb(W.wrist, [W.wrist[0] + m * 0.04, W.wrist[1] + 0.1, W.wrist[2] + 0.05], 0.022, 0.003, { color: claw, mat: 'claw', bone: `wc${S}`, k: 0.006 });
         for (const tip of W.tips) s.limb(W.wrist, tip, 0.02, 0.006, { color: hide, mat: 'hide', bone: `wc${S}`, k: 0.01 });
-        const panel = (a, b, c, bone) => s.panel(a, b, c, 0.014, { color: membrane, mat: 'wing', bone, k: 0.008 });
+        // Thick enough that the board's coarser grid can't miss it and leave holes.
+        const panel = (a, b, c, bone) => s.panel(a, b, c, 0.03, { color: membrane, mat: 'wing', bone, k: 0.008 });
         const pts = [W.wrist, ...W.tips];
         for (let i = 1; i < pts.length - 1; i++) panel(pts[0], pts[i], pts[i + 1], `wc${S}`);
         const flank = [m * 0.2, 0.8, -0.4];
@@ -236,9 +237,10 @@ export default {
       k.turn('jaw', 0.15 * w + 0.6 * l, 0, 0);
       for (const m of [1, -1]) {
         const S = side(m);
-        k.turn(`wa${S}`, -0.4 * open, m * -0.6 * open, m * -0.9 * open);
-        k.turn(`wb${S}`, 0, m * 0.9 * open, m * 0.4 * open);
-        k.turn(`wc${S}`, 0.5 * open, m * 0.5 * open, 0);
+        // The wings swing out from along the back and up, the fingers fanning.
+        k.turn(`wa${S}`, 0.1 * open, m * -1.1 * open, m * 0.5 * open);
+        k.turn(`wb${S}`, 0, m * -0.45 * open, m * 0.15 * open);
+        k.turn(`wc${S}`, 0, m * -0.35 * open, m * 0.2 * open);
         k.turn(`fl1${S}`, -0.6 * w, 0, 0);
         k.turn(`fl2${S}`, 0.6 * w, 0, 0);
       }

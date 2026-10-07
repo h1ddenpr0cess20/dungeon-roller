@@ -38,7 +38,7 @@ function wing(m) {
 export default {
   name: 'bat',
   cell: 0.0055,
-  cells: { eyes: 0.0018, fangs: 0.0016, wings: 0.0052, ears: 0.0028 },
+  cells: { eyes: 0.0018, fangs: 0.0016, wings: 0.0038, ears: 0.0028 },
   bones: [
     ['root', null, [0, 0, 0]],
     ['body', 'root', [0, 0, 0]],
@@ -104,7 +104,8 @@ export default {
         const pts = [w.wr, ...w.tips];
         for (const tip of w.tips) s.limb(w.wr, tip, 0.005, 0.0025, { color: skin, mat: 'skin', bone: `hand${S}`, k: 0.004 });
         // Membrane panels: flat triangles of skin between each pair of fingers, and back to the body.
-        const panel = (p0, p1, p2, bone) => s.panel(p0, p1, p2, 0.006, { color: membrane, mat: 'wing', bone, k: 0.004 });
+        // Thick enough that the board's coarser grid can't miss it and leave holes.
+        const panel = (p0, p1, p2, bone) => s.panel(p0, p1, p2, 0.012, { color: membrane, mat: 'wing', bone, k: 0.004 });
         // Wrist to each pair of finger tips; the last finger back to the body's flank.
         for (let i = 1; i < pts.length - 1; i++) panel(pts[0], pts[i], pts[i + 1], `hand${S}`);
         panel(w.wr, w.tips[3], [m * 0.04, -0.02, -0.07], `fore${S}`);
