@@ -44,7 +44,7 @@ export function createHud(root, { onStart }) {
     li.innerHTML = `<b style="--hero:${h.colour}">${h.mark}</b><span class="name">${h.name}</span>`
       + '<span class="bar"><i></i></span><span class="hp"></span><span class="hit"></span>';
     partyEl.appendChild(li);
-    return { li, bar: li.querySelector('i'), hp: li.querySelector('.hp'), hit: li.querySelector('.hit') };
+    return { li, name: li.querySelector('.name'), bar: li.querySelector('i'), hp: li.querySelector('.hp'), hit: li.querySelector('.hit') };
   });
 
   /** The map: every tile seen so far, the die, the monsters near it and the stairs once found. */
@@ -138,6 +138,7 @@ export function createHud(root, { onStart }) {
         r.bar.style.width = `${(100 * Math.max(0, h.hp)) / h.max}%`;
         r.bar.classList.toggle('low', h.hp > 0 && h.hp <= h.max * 0.3);
         r.hp.textContent = `${Math.max(0, h.hp)}/${h.max}`;
+        r.name.textContent = `${h.name} L${h.level}`;
         r.li.classList.toggle('down', h.hp <= 0);
         const t = took?.[i] ?? 0;
         if (t !== 0) {

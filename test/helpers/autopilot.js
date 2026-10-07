@@ -14,7 +14,7 @@ import { hammerAt, liftAt, spikesAt } from '../../src/actors.js';
 import { resolveBattle } from '../../src/battle.js';
 import { createDelve, HARM, putBack, STEP, stepDelve } from '../../src/delve.js';
 import { FALL_LIMIT } from '../../src/physics.js';
-import { createParty, heal, hurt, revive, seeded, wiped } from '../../src/party.js';
+import { createParty, grant, heal, hurt, revive, rollBonus, seeded, wiped } from '../../src/party.js';
 
 /** The furthest it will drop off a ledge: well short of a drop that hurts. */
 export const DROP = FALL_LIMIT * 0.6;
@@ -287,11 +287,11 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
 
     if (out.outcome === 'exit') return { finished: true, time: t, losses, harms, fights, party, delve };
     if (out.fight) {
-      const result = resolveBattle({ roll: out.roll, monster: out.fight.stats });
+      const result = resolveBattle({ roll: out.roll, monster: out.fight.stats, bonus: rollBonus(party) });
       hurt(party, result.damage, random);
       revive(party);
+      if (!delve.actors.wound(out.fight, result.hits)) grant(party, Math.ceil(result.gold / 2));
       fights.push({ kind: out.fight.kind, roll: out.roll, grade: result.grade, damage: result.damage });
-      delve.actors.defeat(out.fight);
       b.vx = b.vz = 0;
       if (wiped(party)) return { finished: false, time: t, losses, harms, fights, party, stuck: 'party wiped' };
     }

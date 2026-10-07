@@ -639,3 +639,6 @@ kbd {
   #title h1 .rule i { width: 2px; height: auto; flex: 1; background: linear-gradient(180deg, rgba(217, 164, 65, 0), var(--old-gold) 40%, var(--old-gold) 60%, rgba(217, 164, 65, 0)); }
 }
 .help { font-family: var(--display); color: #a8987e; }
+
+#battle .heroes small { opacity: 0.7; font-weight: normal; }
+#battle .bonus { display: block; font-size: 0.7em; opacity: 0.75; }
