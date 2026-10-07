@@ -1,10 +1,12 @@
+import { createScore, themeFor } from './score.js';
+
 /**
  * Every sound, made on the spot with Web Audio — no samples — as Madness
  * does it. The rolling is filtered noise that rises with speed, and every
  * knock is the die's resin clattering on stone; gold chinks, gates grind,
  * spikes ring; the stings for a fight and the jingles are short synthesised
- * phrases; the music is a little sequencer, scheduled a beat ahead of the
- * clock, slower and lower the deeper the party goes.
+ * phrases; the music is a score of its own (score.js), darker and slower
+ * the deeper the party goes.
  *
  * Nothing can play until the page has had a click or a key (browsers insist),
  * so `wake()` is called on the first one.
@@ -12,19 +14,11 @@
 
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-/** The tune: i–VI–iv–V in A minor, a drone under it, an arpeggio over it. */
-const CHORDS = [
-  [45, [57, 60, 64, 69]],
-  [41, [57, 60, 65, 69]],
-  [38, [57, 62, 65, 69]],
-  [40, [56, 59, 64, 68]],
-];
-
 export function createAudio() {
   let ctx = null, master = null, sfx = null, music = null;
   let roll = null, noise = null;
   let muted = false;
-  let tune = null;
+  let score = null;
 
   try { muted = localStorage.getItem('dungeon-roller.muted') === '1'; } catch {}
 
@@ -40,7 +34,7 @@ export function createAudio() {
     sfx.gain.value = 0.9;
     sfx.connect(master);
     music = ctx.createGain();
-    music.gain.value = 0.2;
+    music.gain.value = 0.7;
     music.connect(master);
 
     noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -100,23 +94,7 @@ export function createAudio() {
     o.stop(t + length + 0.05);
   }
 
-  function schedule() {
-    if (!tune || !ctx) return;
-    const step = 60 / tune.tempo / 4;
-    while (tune.next < now() + 0.25) {
-      const i = tune.step;
-      const [bass, arp] = CHORDS[Math.floor(i / 16) % CHORDS.length];
-      const t = tune.next - now();
-      const shift = -tune.down;
-      if (i % 16 === 0) tone({ at: t, freq: NOTE(bass - 12 + shift), length: step * 15, type: 'sawtooth', gain: 0.06, out: music, attack: 0.3 });
-      if (i % 4 === 0) tone({ at: t, freq: NOTE(bass + shift), length: step * 3, type: 'triangle', gain: 0.16, out: music });
-      const order = [0, 2, 1, 3, 2, 1, 2, 0];
-      if (i % 2 === 0) tone({ at: t, freq: NOTE(arp[order[(i / 2) % 8]] + 12 + shift), length: step * 1.6, type: 'triangle', gain: 0.08, out: music });
-      if (i % 8 === 4) burst({ at: t, length: 0.12, type: 'lowpass', freq: 220, gain: 0.18 });
-      tune.step++;
-      tune.next += step;
-    }
-  }
+
 
   return {
     wake,
@@ -224,17 +202,16 @@ export function createAudio() {
       [69, 65, 62, 57, 52].forEach((n, i) => tone({ at: i * 0.32, freq: NOTE(n), length: 0.45, type: 'square', gain: 0.11 }));
     },
 
-    /** The music for `depth`: a little slower and a little lower for every floor down. */
-    startMusic(depth = 1) {
-      if (!ctx || tune) return;
-      tune = { step: 0, next: now() + 0.05, tempo: 112 - depth * 4, down: Math.min(5, depth - 1), timer: setInterval(schedule, 60) };
-      schedule();
+    /** The music for `depth`; `boss` for a level with a boss in it. */
+    startMusic(depth = 1, { boss = false } = {}) {
+      if (!ctx) return;
+      score ??= createScore(ctx, music, noise);
+      if (score.playing) return;
+      score.start(themeFor(depth, boss));
     },
 
     stopMusic() {
-      if (!tune) return;
-      clearInterval(tune.timer);
-      tune = null;
+      score?.stop();
     },
   };
 }

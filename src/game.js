@@ -3,6 +3,7 @@ import { DIE_SCALE, dieModel, reachBelow, showNumber } from './die.js';
 import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from './delve.js';
 import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
+import { MONSTERS } from './monsters.js';
 import { createParty, heal, hurt, rest, revive, seeded, wiped } from './party.js';
 import { turn } from './physics.js';
 import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
@@ -86,6 +87,11 @@ export function createGame({ stage, hud, input, audio, storage }) {
     warmUp();
   }
 
+  /** Whether this level has a boss in it: it has music of its own. */
+  function bossHere() {
+    return delve.level.mobs.some((m) => MONSTERS[m.kind]?.boss);
+  }
+
   /** Sparks off the lava near the die, a few a second. */
   function lavaSparks(dt) {
     const b = delve.ball;
@@ -156,7 +162,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
     hud.party(party);
     audio.wake();
     audio.descend();
-    audio.startMusic(delve.level.depth);
+    audio.startMusic(delve.level.depth, { boss: bossHere() });
   }
 
   /** If anyone is down and the party carries a revive potion, it is drunk now: every fallen hero gets back up. */
@@ -216,7 +222,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
       drinkRevive();
       if (wiped(party)) return gameOver();
       enter('play');
-      audio.startMusic(delve.level.depth);
+      audio.startMusic(delve.level.depth, { boss: bossHere() });
     });
   }
 
@@ -320,7 +326,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
       if (p === 'pause' && (state === 'play' || state === 'ready' || state === 'lost')) {
         paused = !paused;
         hud.paused(paused);
-        if (paused) audio.stopMusic(); else audio.startMusic(delve.level.depth);
+        if (paused) audio.stopMusic(); else audio.startMusic(delve.level.depth, { boss: bossHere() });
       }
       if ((p === 'start' || p === 'tap') && (state === 'over' || state === 'won') && timer > 1.2) showTitle();
       else if (p === 'start' && state === 'title') startRun(0);
