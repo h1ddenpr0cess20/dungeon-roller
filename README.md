@@ -51,10 +51,10 @@ stops, it settles onto its nearest face. The number on top is shown beside
 the party the whole time. Whatever is on top at the moment you hit a monster
 is your roll. A 20 shines gold and a 1 burns red.
 
-### Fights: a stand-in for now
+### Fights
 
-Hitting a monster opens the battle screen. For now it is a mock: the roll is
-checked against the monster's DC, and that one comparison decides the fight.
+Hitting a monster opens the battle screen. The roll is checked against the
+monster's DC, and that one comparison decides the fight.
 
 | Roll | | What it costs |
 |---|---|---|
@@ -63,15 +63,13 @@ checked against the monster's DC, and that one comparison decides the fight.
 | under the DC | **Hard-won** | Half its power, plus a third of how far under, rounded up. |
 | 1 | **Fumble** | Twice its power. |
 
-The party always wins for now. Damage is spread a point at a time over the
-heroes who are still standing: the Knight in front takes the most and the
-Mage at the back the least. The real battle screen replaces `resolveBattle`
-and `createBattleScreen` in `src/battle.js`. The game only needs `damage` and
-`gold` back from it.
+The party always wins the fight itself. Damage is spread a point at a time
+over the heroes who are still standing: the one in front takes the most and
+the one at the back the least.
 
 A full turn-based system is also built and tested: a port of capitol-quest's,
 with skills, MP, LIMIT, weaknesses that BREAK, items, levels and
-auto-battle. For now it is shelved. [docs/battle-system.md](docs/battle-system.md)
+auto-battle. It is shelved. [docs/battle-system.md](docs/battle-system.md)
 covers its rules, what is left to do, and how to bring it back from the
 patch kept in `docs/battle-port/`.
 
@@ -145,7 +143,7 @@ you.
 | `src/actors.js` | Everything that moves or can be picked up: monsters, crushers, spikes, platforms, portcullises and treasure. |
 | `src/delve.js` | One level with nothing drawn: the rules for falling, burning, fights, keys and the stairs. The game draws it; the tests drive it. |
 | `src/party.js` | The four heroes and their hit points. |
-| `src/battle.js` | The stand-in battle. |
+| `src/battle.js` | The battle: the roll against the DC, and its screen. |
 | `src/audio.js` | Every sound, synthesised with Web Audio. |
 
 | Script | |
@@ -153,7 +151,7 @@ you.
 | `npm run dev` | Vite dev server |
 | `npm run build` | Bundles to `dist/` |
 | `npm run preview` | `build`, then serves `dist/` |
-| `npm test` | `node:test`. Covers the physics, the dungeon builder and digger, the die, the mock battle, the party, the monsters and traps, and the rules. An autopilot plans its own way through every level. It has to get the party down the stairs alive, without losing the die once, and take more than a minute doing it. |
+| `npm test` | `node:test`. Covers the physics, the dungeon builder and digger, the die, the battle, the party, the monsters and traps, and the rules. An autopilot plans its own way through every level. It has to get the party down the stairs alive, without losing the die once, and take more than a minute doing it. |
 | `npm run lint` | ESLint |
 | `node scripts/map.js 3` | Prints a level as text, for laying one out (`--heights` for the floor heights). |
 

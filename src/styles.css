@@ -295,7 +295,7 @@ kbd {
   color: var(--ink);
 }
 
-/* The battle: for now, a stand-in (battle.js). */
+/* The battle (battle.js). */
 #battle {
   position: fixed;
   inset: 0;
@@ -315,13 +315,6 @@ kbd {
   border-radius: 6px;
   box-shadow: 0 0 60px rgba(255, 90, 30, 0.25);
   text-align: center;
-}
-#battle .mock {
-  margin: 0 0 6px;
-  font-size: 10px;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: var(--dim);
 }
 #battle h2 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blood); }
 #battle .clash { display: flex; justify-content: center; align-items: center; gap: 22px; }

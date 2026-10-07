@@ -1,9 +1,9 @@
 import { HEROES } from './party.js';
 
 /**
- * The battle — for now, a stand-in. Roll into a monster and the number on
- * top of the die is the party's roll; this decides the fight from that one
- * number, and shows it.
+ * The battle. Roll into a monster and the number on top of the die is the
+ * party's roll; that one number, against the monster's DC, decides the
+ * fight.
  *
  *   20               critical: the party wins untouched, and the gold is doubled
  *   the DC or better a clean win: half the monster's power at the DC, and a
@@ -12,9 +12,9 @@ import { HEROES } from './party.js';
  *                    monster's power, and more the further under
  *   1                fumble: the monster gets in twice as hard
  *
- * The party always wins here: losing is only ever running out of hit points.
- * The real battle screen goes in behind `resolveBattle` and `createBattleScreen`;
- * the game only needs a result with `damage` and `gold` back.
+ * The party always wins the fight itself: losing is only ever running out
+ * of hit points. The game only needs `damage` and `gold` back. (A full
+ * turn-based system is kept aside in docs/battle-system.md.)
  */
 
 export function resolveBattle({ roll, monster }) {
@@ -33,7 +33,7 @@ export const GRADES = Object.freeze({
 });
 
 /**
- * The stand-in battle screen: the monster, the roll against its DC, and
+ * The battle screen: the monster, the roll against its DC, and
  * what the fight cost each hero. `show` resolves when the player carries on.
  */
 export function createBattleScreen(root) {
@@ -44,7 +44,6 @@ export function createBattleScreen(root) {
   el.setAttribute('aria-label', 'Battle');
   el.innerHTML = `
     <div class="card">
-      <p class="mock">battle screen — mock</p>
       <h2 class="foe"></h2>
       <div class="clash">
         <div class="roll"><span class="d20"></span><span class="label">your roll</span></div>
