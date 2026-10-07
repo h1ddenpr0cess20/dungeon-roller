@@ -17,6 +17,7 @@ import { Skeleton, skin } from './rig.js';
  *   cell       the grid step it is meshed at, in tiles
  *   cells      { part: step } for parts that need a finer grid (eyes, teeth)
  *   scale      how big it is stood up in the world (1 as sculpted)
+ *   budget     how many vertices its board mesh may have (the tests hold it to this; 9000 if not given)
  *   sculpt(s)  adds its shapes to the Sculpt s (sdf.js)
  *   animate(skeleton, state)  poses it; state is { clip, t, time, seed, speed }
  */

@@ -41,7 +41,7 @@ test('a bone turned about its pivot carries its skin round with it', () => {
 for (const [name, def] of Object.entries(CAST)) {
   test(`${name}: bakes for the board within budget, every vertex fully weighted to real bones, and every clip poses it`, () => {
     const m = bake(def, { detail: 0.5 });
-    assert.ok(m.count > 500 && m.count < 9000, `${m.count} vertices`);
+    assert.ok(m.count > 500 && m.count < (def.budget ?? 9000), `${m.count} vertices`);
     for (let v = 0; v < m.count; v++) {
       let w = 0;
       for (let i = 0; i < 4; i++) {

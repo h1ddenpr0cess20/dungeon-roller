@@ -303,6 +303,36 @@ export class Sculpt {
     }, [[0, 1, 2].map((i) => Math.min(a[i], b[i]) - m), [0, 1, 2].map((i) => Math.max(a[i], b[i]) + m)], o);
   }
 
+  /**
+   * A thin flat triangle a–b–c, `thick` through (half each side): a panel of
+   * wing membrane, a sail, a blade's facet.
+   */
+  panel(a, b, c, thick, o) {
+    const n = [
+      (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]),
+      (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+      (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]),
+    ];
+    const l = len(n) || 1;
+    const N = n.map((v) => v / l);
+    const corners = [a, b, c];
+    // For each edge, the way into the triangle, in its plane.
+    const edges = corners.map((u, i) => {
+      const v = corners[(i + 1) % 3];
+      const e = sub(v, u);
+      const inward = [N[1] * e[2] - N[2] * e[1], N[2] * e[0] - N[0] * e[2], N[0] * e[1] - N[1] * e[0]];
+      const il = len(inward) || 1;
+      return { u, inward: inward.map((x) => x / il) };
+    });
+    const half = thick / 2;
+    return this.shape((p) => {
+      const d = Math.abs(dot(sub(p, a), N)) - half;
+      let out = -Infinity;
+      for (const { u, inward } of edges) out = Math.max(out, -dot(sub(p, u), inward));
+      return Math.hypot(Math.max(out, 0), Math.max(d, 0)) + Math.min(Math.max(out, d), 0);
+    }, [[0, 1, 2].map((i) => Math.min(a[i], b[i], c[i]) - half), [0, 1, 2].map((i) => Math.max(a[i], b[i], c[i]) + half)], o);
+  }
+
   /** A chain of capsules through points, with a radius at each. */
   chain(points, radii, o) {
     for (let i = 0; i < points.length - 1; i++) {

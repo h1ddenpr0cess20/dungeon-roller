@@ -104,36 +104,12 @@ export default {
         const pts = [w.wr, ...w.tips];
         for (const tip of w.tips) s.limb(w.wr, tip, 0.005, 0.0025, { color: skin, mat: 'skin', bone: `hand${S}`, k: 0.004 });
         // Membrane panels: flat triangles of skin between each pair of fingers, and back to the body.
-        const panel = (a, b, c, bone) => {
-          const n = [
-            (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]),
-            (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
-            (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]),
-          ];
-          const l = Math.hypot(...n) || 1;
-          const N = n.map((v) => v / l);
-          const ab = [a, b, c];
-          s.shape((p) => {
-            // Distance to a thin triangle: the plane, clipped to its edges, minus half its thickness.
-            const d = (p[0] - a[0]) * N[0] + (p[1] - a[1]) * N[1] + (p[2] - a[2]) * N[2];
-            let out = -Infinity;
-            for (let i = 0; i < 3; i++) {
-              const u = ab[i], v = ab[(i + 1) % 3];
-              const e = [v[0] - u[0], v[1] - u[1], v[2] - u[2]];
-              const inward = [N[1] * e[2] - N[2] * e[1], N[2] * e[0] - N[0] * e[2], N[0] * e[1] - N[1] * e[0]];
-              const il = Math.hypot(...inward) || 1;
-              const side_ = ((p[0] - u[0]) * inward[0] + (p[1] - u[1]) * inward[1] + (p[2] - u[2]) * inward[2]) / il;
-              out = Math.max(out, -side_);
-            }
-            return Math.hypot(Math.max(out, 0), Math.max(Math.abs(d) - 0.003, 0)) + Math.min(Math.max(out, Math.abs(d) - 0.003), 0);
-          }, [[0, 1, 2].map((i) => Math.min(a[i], b[i], c[i]) - 0.01), [0, 1, 2].map((i) => Math.max(a[i], b[i], c[i]) + 0.01)], { color: membrane, mat: 'wing', bone, k: 0.004 });
-        };
+        const panel = (p0, p1, p2, bone) => s.panel(p0, p1, p2, 0.006, { color: membrane, mat: 'wing', bone, k: 0.004 });
         // Wrist to each pair of finger tips; the last finger back to the body's flank.
-        const wind = m > 0 ? (a, b, c) => [a, b, c] : (a, b, c) => [a, c, b];
-        for (let i = 1; i < pts.length - 1; i++) panel(...wind(pts[0], pts[i], pts[i + 1]), `hand${S}`);
-        panel(...wind(w.wr, w.tips[3], [m * 0.04, -0.02, -0.07]), `fore${S}`);
-        panel(...wind(w.wr, [m * 0.04, -0.02, -0.07], w.sh), `fore${S}`);
-        panel(...wind(w.sh, w.el, w.wr), `arm${S}`);
+        for (let i = 1; i < pts.length - 1; i++) panel(pts[0], pts[i], pts[i + 1], `hand${S}`);
+        panel(w.wr, w.tips[3], [m * 0.04, -0.02, -0.07], `fore${S}`);
+        panel(w.wr, [m * 0.04, -0.02, -0.07], w.sh, `fore${S}`);
+        panel(w.sh, w.el, w.wr, `arm${S}`);
       }
     });
   },
