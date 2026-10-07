@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import * as GFX from '../src/vendor/gfx/index.js';
 import { CAST } from '../src/models/cast/index.js';
 import { BUILT, standUp } from '../src/models/looks.js';
-import { bake, createModel } from '../src/models/model.js';
+import { bake, createModel, createStatic } from '../src/models/model.js';
+import { PROPS } from '../src/models/props/index.js';
 import { Sculpt, build } from '../src/models/sdf.js';
 import { Skeleton } from '../src/models/rig.js';
 
@@ -83,5 +84,19 @@ for (const name of Object.keys(BUILT)) {
       assert.ok(Number.isFinite(low), `${clip}: ${low}`);
       if (clip !== 'attack') assert.ok(low > -0.15, `${clip}: dips to ${low}`);
     }
+  });
+}
+
+for (const [name, def] of Object.entries(PROPS)) {
+  test(`${name} (a prop): bakes within budget, every material it names is real, and stands on the floor`, () => {
+    const m = bake(def, { detail: 1 });
+    assert.ok(m.count > 500 && m.count < (def.budget ?? 9000), `${m.count} vertices`);
+    for (const g of m.groups) assert.ok(g.materialIndex < Object.keys(def.materials).length);
+    const mesh = createStatic(GFX, def);
+    mesh.updateMatrixWorld(true);
+    const low = lowest(mesh);
+    assert.ok(low > -0.02 && low < 0.03, `lowest point at ${low}`);
+    // Every copy shares one geometry.
+    assert.equal(createStatic(GFX, def).geometry, mesh.geometry);
   });
 }

@@ -3,7 +3,8 @@ import { DIE_SCALE, dieModel, reachBelow, showNumber } from './die.js';
 import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from './delve.js';
 import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
-import { MONSTERS } from './monsters.js';
+import { BOARD_DETAIL, MONSTERS } from './monsters.js';
+import { readyAll } from './models/library.js';
 import { createParty, heal, hurt, rest, revive, seeded, wiped } from './party.js';
 import { turn } from './physics.js';
 import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
@@ -59,6 +60,8 @@ export function createGame({ stage, hud, input, audio, storage }) {
   let playZoom = 1;
   let saved = storage.load();
   let shown = 0;
+  /** Whether the level's monsters and props are still baking: it doesn't start until they are all there. */
+  let baking = false;
   /** The die's squash on landing: a spring, as Nat's is. */
   const squash = { p: 0, v: 0 };
   const titleQ = [0, 0, 0, 1];
@@ -85,6 +88,17 @@ export function createGame({ stage, hud, input, audio, storage }) {
     const l = delve.level;
     for (let z = 0; z < l.rows; z++) for (let x = 0; x < l.cols; x++) if (l.cell(x, z)?.kind === 'lava') lavaTiles.push([x, l.cell(x, z).h[0], z]);
     warmUp();
+    // Once everything in it has baked (they come in in the background), draw it all again so its shaders are ready too.
+    const here = delve;
+    baking = true;
+    readyAll([
+      ...l.mobs.map((m) => [m.kind, BOARD_DETAIL]),
+      ...l.pickups.map((p) => [p.kind, 1]),
+    ]).then(() => {
+      if (delve !== here) return;
+      baking = false;
+      warmUp();
+    });
   }
 
   /** Whether this level has a boss in it: it has music of its own. */
@@ -349,7 +363,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
     const b = delve.ball;
     switch (state) {
       case 'ready':
-        if (timer > 1.6) {
+        if (timer > 1.6 && !baking) {
           enter('play');
           hud.banner(null);
         }

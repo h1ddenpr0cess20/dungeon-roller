@@ -12,6 +12,7 @@ import { createRenderer, paintVault } from '../stage.js';
 import { createModel } from './model.js';
 import { BUILT, standUp } from './looks.js';
 import { CAST } from './cast/index.js';
+import { PROPS } from './props/index.js';
 
 const params = new URLSearchParams(location.search);
 const host = document.getElementById('view');
@@ -59,7 +60,7 @@ const state = { look: params.has('ty') ? Number(params.get('ty')) : null, clip: 
 /** A definition by name: from the cast, or straight from its file while it is being sculpted. */
 const defs = new Map();
 async function load(name) {
-  if (!defs.has(name)) defs.set(name, CAST[name] ?? (await import(`./cast/${name}.js`)).default);
+  if (!defs.has(name)) defs.set(name, CAST[name] ?? PROPS[name] ?? (await import(`./cast/${name}.js`)).default);
   return defs.get(name);
 }
 

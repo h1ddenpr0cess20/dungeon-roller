@@ -1,6 +1,9 @@
 import { createMonsterMesh, FLIGHT, MONSTERS } from './monsters.js';
 import { collideBalls, createBall, PUSH, stepBall } from './physics.js';
 import { stoneTexture } from './scenery.js';
+import { isBaked, ready } from './models/library.js';
+import { createStatic } from './models/model.js';
+import { PROPS } from './models/props/index.js';
 
 /**
  * Everything in a dungeon that moves or can be taken, and isn't the die:
@@ -17,6 +20,9 @@ const DOOR_THICKNESS = 0.18;
 
 /** Further than this from the die, a monster with nothing to do stops being simulated. */
 const SLEEP = 26;
+
+/** Pickups that lie on the floor rather than float. */
+const STILL = new Set(['chest', 'gold']);
 
 const smooth = (t) => t * t * (3 - 2 * t);
 const cycleOf = (time, period, phase) => ((((time + phase) / period) % 1) + 1) % 1;
@@ -213,67 +219,21 @@ export function createActors(GFX, dungeon, world, { killY }) {
 
   world.boxes = [...crushers.map((h) => h.box), ...lifts.map((l) => l.box), ...doors.map((g) => g.box)];
 
-  // What lies about.
-  const gold = new GFX.MeshStandardMaterial({ name: 'gold', color: new GFX.Color('#ffcf4a'), metalness: 1, roughness: 0.25, emissive: new GFX.Color('#6a4a00'), emissiveIntensity: 0.6 });
-  const wood = new GFX.MeshStandardMaterial({ name: 'chest', color: new GFX.Color('#7a4a26'), roughness: 0.8 });
-  const glass = new GFX.MeshStandardMaterial({ name: 'potion', color: new GFX.Color('#ff3d5a'), roughness: 0.15, emissive: new GFX.Color('#ff1030'), emissiveIntensity: 0.9 });
-  const cork = new GFX.MeshStandardMaterial({ name: 'cork', color: new GFX.Color('#b08a5a'), roughness: 0.9 });
-  const elixir = new GFX.MeshStandardMaterial({ name: 'revive', color: new GFX.Color('#ffe9a8'), roughness: 0.1, emissive: new GFX.Color('#ffb830'), emissiveIntensity: 1.4 });
-  const coin = new GFX.CylinderGeometry(0.075, 0.075, 0.025, 14);
-  const pickups = dungeon.pickups.map((p) => {
+  // What lies about: the sculpted props (models/props/), each set down as soon as it is baked.
+  const pickups = dungeon.pickups.map((p, i) => {
     const mesh = new GFX.Group();
     const spin = new GFX.Group();
     mesh.add(spin);
-    if (p.kind === 'gold') {
-      for (let k = 0; k < 7; k++) {
-        const c = new GFX.Mesh(coin, gold);
-        const a = k * 2.4, r = k ? 0.08 + (k % 3) * 0.03 : 0;
-        c.position.set(Math.cos(a) * r, 0.015 + (k ? 0 : 0.03) + Math.floor(k / 4) * 0.025, Math.sin(a) * r);
-        c.rotation.set((k % 2) * 0.3, a, 0);
-        spin.add(c);
-      }
-    } else if (p.kind === 'chest') {
-      const box = new GFX.Mesh(new GFX.BoxGeometry(0.5, 0.28, 0.34), wood);
-      box.position.y = 0.14;
-      const lid = new GFX.Mesh(new GFX.CylinderGeometry(0.17, 0.17, 0.5, 12, 1, false, 0, Math.PI), wood);
-      lid.rotation.z = Math.PI / 2;
-      lid.position.y = 0.28;
-      const band = new GFX.Mesh(new GFX.BoxGeometry(0.06, 0.3, 0.36), gold);
-      band.position.y = 0.15;
-      const lock = new GFX.Mesh(new GFX.BoxGeometry(0.08, 0.09, 0.04), gold);
-      lock.position.set(0, 0.25, 0.18);
-      spin.add(box, lid, band, lock);
-    } else if (p.kind === 'potion') {
-      const flask = new GFX.Mesh(new GFX.SphereGeometry(0.12, 16, 12), glass);
-      flask.position.y = 0.13;
-      const neck = new GFX.Mesh(new GFX.CylinderGeometry(0.04, 0.045, 0.1, 10), glass);
-      neck.position.y = 0.27;
-      const stop = new GFX.Mesh(new GFX.CylinderGeometry(0.045, 0.04, 0.05, 10), cork);
-      stop.position.y = 0.34;
-      spin.add(flask, neck, stop);
-    } else if (p.kind === 'revive') {
-      // A tall golden flask with a star for a stopper: a revive potion.
-      const flask = new GFX.Mesh(new GFX.SphereGeometry(0.1, 16, 12), elixir);
-      flask.scale.set(1, 1.35, 1);
-      flask.position.y = 0.15;
-      const neck = new GFX.Mesh(new GFX.CylinderGeometry(0.035, 0.04, 0.12, 10), elixir);
-      neck.position.y = 0.32;
-      const star = new GFX.Mesh(new GFX.IcosahedronGeometry(0.055, 0), gold);
-      star.position.y = 0.42;
-      star.scale.set(1, 1.3, 0.6);
-      spin.add(flask, neck, star);
-    } else if (p.kind === 'key') {
-      const ring = new GFX.Mesh(new GFX.TorusGeometry(0.07, 0.022, 8, 18), gold);
-      ring.position.y = 0.4;
-      const shaft = new GFX.Mesh(new GFX.CylinderGeometry(0.022, 0.022, 0.26, 8), gold);
-      shaft.position.y = 0.2;
-      const bit = new GFX.Mesh(new GFX.BoxGeometry(0.08, 0.04, 0.03), gold);
-      bit.position.set(0.04, 0.1, 0);
-      const bit2 = new GFX.Mesh(new GFX.BoxGeometry(0.06, 0.04, 0.03), gold);
-      bit2.position.set(0.03, 0.16, 0);
-      spin.add(ring, shaft, bit, bit2);
-    }
-    mesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    const put = () => {
+      const prop = createStatic(GFX, PROPS[p.kind]);
+      // A heap as big as what's in it.
+      if (p.kind === 'gold') prop.scale.setScalar(0.95 + 0.55 * Math.min(1, Math.max(0, (p.amount - 3) / 30)));
+      spin.add(prop);
+    };
+    if (isBaked(p.kind, 1)) put();
+    else if (typeof window !== 'undefined') ready(p.kind, 1).then(put);
+    // Chests and gold sit where they were left, at whatever angle; the rest float and turn.
+    if (STILL.has(p.kind)) spin.rotation.y = (i * 2.399963) % (Math.PI * 2);
     const ground = dungeon.heightAt(p.x, p.z) ?? 0;
     mesh.position.set(p.x, ground, p.z);
     group.add(mesh);
@@ -447,9 +407,9 @@ export function createActors(GFX, dungeon, world, { killY }) {
       for (const [i, p] of pickups.entries()) {
         p.mesh.visible = !p.taken;
         if (p.taken) continue;
-        const bob = p.kind === 'chest' ? 0 : 0.06 + Math.sin(time * 2.4 + i) * 0.05;
-        p.spin.position.y = bob;
-        if (p.kind !== 'chest') p.spin.rotation.y = time * 1.6 + i;
+        if (STILL.has(p.kind)) continue;
+        p.spin.position.y = 0.06 + Math.sin(time * 2.4 + i) * 0.05;
+        p.spin.rotation.y = time * 1.6 + i;
       }
     },
   };

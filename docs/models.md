@@ -1,19 +1,22 @@
 # The models: sculpted in code
 
-Every creature in the game is sculpted in JavaScript and rendered by our own
-engine (`src/vendor/gfx`). No meshes or textures are downloaded, and nothing
-in the 3D world is a 2D sprite. A model is a definition file in
-`src/models/cast/`. The game turns it into a mesh, a *bake*, when the page
-starts.
+Every creature in the game, and everything lying about to be picked up, is
+sculpted in JavaScript and rendered by our own engine (`src/vendor/gfx`). No
+meshes or textures are downloaded, and nothing in the 3D world is a 2D
+sprite. A model is a definition file in `src/models/cast/` (creatures) or
+`src/models/props/` (the chest, the gold heap, the potion, the revive flask
+and the key). The game turns it into a mesh, a *bake*, when the page starts,
+and a level doesn't begin until everything in it has baked.
 
 | File | What it does |
 | --- | --- |
 | `src/models/sdf.js` | The sculpting kit (`Sculpt`): signed distance shapes, smooth union, carving, parts, paint, fur and scale patterns. `build` turns a sculpt into a mesh. |
 | `src/models/skins.js` | Colour helpers for shapes: `coat`, `pelt`, `ramp`, `bands`, `grainy`, `grime`. |
 | `src/models/rig.js` | Bones (`Skeleton`) and CPU skinning (`skin`). |
-| `src/models/model.js` | `bake(def, { detail })` turns a definition into a mesh. `createModel(GFX, def, { detail })` makes a posable copy for a scene. |
-| `src/models/library.js` | Bakes everything in Web Workers as the page loads (`preload`, `ready`, `isBaked`). |
+| `src/models/model.js` | `bake(def, { detail })` turns a definition into a mesh. `createModel(GFX, def, { detail })` makes a posable copy for a scene; `createStatic(GFX, def)` a still one (a prop) that shares its geometry with every other copy. |
+| `src/models/library.js` | Bakes everything in Web Workers as the page loads (`preload`, `ready`, `readyAll`, `isBaked`). |
 | `src/models/cast/*.js` | One definition per creature, listed in `cast/index.js`. |
+| `src/models/props/*.js` | One definition per pickup, listed in `props/index.js`: one bone, no animation, baked at detail 1. |
 | `models.html` | A turntable for looking at models while sculpting (dev server only). |
 | `scripts/bake.js` | Vertex and triangle counts and bake times: `node scripts/bake.js [name] [detail]`. |
 
@@ -129,10 +132,12 @@ These make or break a creature. The rat's recipe (`cast/rat.js`):
   - goblin: 0.6 tall
   - skeleton: 0.85 tall
   - orc: 0.9 tall and broad
-  - ooze: about 0.9 across, 0.5 high
   - bat: about 0.9 wingspan
   - wraith: 0.8 tall, floating
   - dragon: about 2.5 long and 1.4 high
+  - props: the chest half a tile across, the potion and key about 0.35
+    tall, the revive flask 0.5 (with their `scale`); they rest on y = 0
+    and the game floats and turns the potions and the key
 - **Detail.** Detail 1 is the close-up mesh. The board uses detail 0.5
   (`BOARD_DETAIL`): the grid steps doubled, about a quarter of the
   triangles.
@@ -140,6 +145,8 @@ These make or break a creature. The rat's recipe (`cast/rat.js`):
   - at detail 1: under about 30k vertices and under about 2.5 s to bake in
     Node
   - at detail 0.5: under about 8k vertices
+  - a prop, at detail 1: under 9k vertices (the tests hold every
+    definition to its `budget`)
 - **On the board**, only monsters within 15 tiles of the die are posed each
   frame. The rest keep their last pose.
 

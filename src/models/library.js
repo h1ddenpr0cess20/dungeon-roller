@@ -1,5 +1,9 @@
 import { CAST } from './cast/index.js';
 import { adopt } from './model.js';
+import { PROPS } from './props/index.js';
+
+/** Everything sculpted, by name: the creatures and the props. */
+export const SCULPTED = { ...CAST, ...PROPS };
 
 /**
  * The models, baked in the background as the page starts: a few workers
@@ -14,6 +18,18 @@ const key = (name, detail) => `${name}@${detail}`;
 /** Whether `name` at `detail` is ready to use. */
 export const isBaked = (name, detail) => done.has(key(name, detail));
 
+/**
+ * Resolves once every one of `jobs` ([name, detail] pairs) is baked (or
+ * after 20 seconds whatever happens); at once where nothing bakes in the
+ * background (no workers: tests, scripts).
+ */
+export function readyAll(jobs) {
+  if (typeof Worker === 'undefined') return Promise.resolve();
+  const all = Promise.all(jobs.filter(([n]) => SCULPTED[n]).map(([n, d]) => ready(n, d)));
+  // Not forever, though: if a bake has gone wrong, better to play without it.
+  return Promise.race([all, new Promise((r) => setTimeout(r, 20000))]);
+}
+
 /** Resolves once `name` at `detail` is baked. */
 export function ready(name, detail) {
   const k = key(name, detail);
@@ -26,10 +42,14 @@ export function ready(name, detail) {
   return waiting.get(k).p;
 }
 
-/** Starts baking `jobs` ([name, detail] pairs), first come first served across the workers. */
-export function preload(jobs = Object.keys(CAST).map((n) => [n, 0.5])) {
+/**
+ * Starts baking `jobs` ([name, detail] pairs), first come first served
+ * across the workers: by default the props (small, and everywhere) and
+ * then the creatures, at the detail the board wants them.
+ */
+export function preload(jobs = [...Object.keys(PROPS).map((n) => [n, 1]), ...Object.keys(CAST).map((n) => [n, 0.5])]) {
   if (typeof Worker === 'undefined') return;
-  const queue = jobs.filter(([n, d]) => CAST[n] && !done.has(key(n, d)));
+  const queue = jobs.filter(([n, d]) => SCULPTED[n] && !done.has(key(n, d)));
   const count = Math.max(1, Math.min(queue.length, (navigator.hardwareConcurrency || 4) - 1, 4));
   for (let i = 0; i < count; i++) {
     const worker = new Worker(new URL('./bake.worker.js', import.meta.url), { type: 'module' });
@@ -39,7 +59,7 @@ export function preload(jobs = Object.keys(CAST).map((n) => [n, 0.5])) {
       worker.postMessage({ name: job[0], detail: job[1] });
     };
     worker.onmessage = ({ data: { name, detail, data } }) => {
-      adopt(CAST[name], detail, data);
+      adopt(SCULPTED[name], detail, data);
       const k = key(name, detail);
       done.set(k, true);
       waiting.get(k)?.resolve();

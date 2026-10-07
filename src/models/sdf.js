@@ -348,6 +348,16 @@ export class Sculpt {
     return this.shape((p) => sdRoundBox(local(p, c, R), b, r), [c.map((v) => v - m), c.map((v) => v + m)], o);
   }
 
+  /** A cylinder of radius r round its local y axis, `h` tall either side of c, its edges rounded by `round`, turned by `rot`. */
+  cylinder(c, r, h, o = {}) {
+    const R = o.rot ? rotation(o.rot) : null, m = Math.hypot(r, h), round = o.round ?? 0;
+    return this.shape((p) => {
+      const q = local(p, c, R);
+      const dx = Math.hypot(q[0], q[2]) - r + round, dy = Math.abs(q[1]) - h + round;
+      return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - round;
+    }, [c.map((v) => v - m), c.map((v) => v + m)], o);
+  }
+
   /** A torus of radius R and tube r round its local y axis, turned by `rot`; `arc` keeps a part of it. */
   torus(c, R, r, o = {}) {
     const Rm = o.rot ? rotation(o.rot) : null, m = R + r, arc = o.arc ?? Math.PI;

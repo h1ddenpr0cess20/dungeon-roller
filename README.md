@@ -127,6 +127,8 @@ Down there:
   shafts. They wait at each end.
 - **Portcullises.** Roll into one with a key and it lifts.
 - **Gold, chests, potions and keys.** Roll over them to pick them up.
+  They're sculpted like the monsters: iron-bound oak chests, heaps of coins
+  with gems in them, flasks of glowing red draught, and big gold keys.
 - **Revive potions.** The golden flasks. The party carries them (the
   crosses in the top corner). The moment a hero falls, one is drunk, and
   every fallen hero gets back up with half their hit points. It can save a

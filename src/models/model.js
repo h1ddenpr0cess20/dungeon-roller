@@ -152,6 +152,35 @@ export function createModel(GFX, def, { detail = 1 } = {}) {
   };
 }
 
+const statics = new WeakMap();
+
+/**
+ * One of `def` that never moves (a prop): a mesh in its rest pose, sharing
+ * its geometry and materials with every other one of it. `detail` as for
+ * `bake`.
+ */
+export function createStatic(GFX, def, { detail = 1 } = {}) {
+  const data = bake(def, { detail });
+  let byGFX = statics.get(data);
+  if (!byGFX) statics.set(data, (byGFX = new Map()));
+  if (!byGFX.has(GFX)) {
+    const geometry = new GFX.BufferGeometry();
+    geometry.setAttribute('position', new GFX.BufferAttribute(data.position, 3));
+    geometry.setAttribute('normal', new GFX.BufferAttribute(data.normal, 3));
+    geometry.setAttribute('color', sharedAttribute(GFX, data, 'color'));
+    geometry.setIndex(sharedAttribute(GFX, data, 'index'));
+    for (const g of data.groups) geometry.addGroup(g.start, g.count, g.materialIndex);
+    geometry.computeBoundingSphere();
+    byGFX.set(GFX, geometry);
+  }
+  const mesh = new GFX.Mesh(byGFX.get(GFX), materialsOf(GFX, def));
+  mesh.name = def.name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.scale.setScalar(def.scale ?? 1);
+  return mesh;
+}
+
 const shared = new WeakMap();
 
 /** The attributes every copy of a model has the same of, made once. */
