@@ -1,10 +1,11 @@
 /**
  * The slime: Slimey's jelly orb (github.com/h1ddenpr0cess20/slimey, its
  * `orb`), brought down into the dungeon. Same jelly — a transmissive shell
- * pushed about by a few lobes of waves, a glowing core, bubbles drifting
- * through it, a bloom round its rim — but sat on the floor as a dome rather
- * than floating, with a pair of eyes looking out of it, and each slime one
- * colour from the orb's palette instead of drifting through all of them.
+ * pushed about by a few lobes of waves, bubbles drifting through it, a
+ * bloom round its rim — but with no glowing core in it, sat on the floor as
+ * a dome rather than floating, with a pair of eyes looking out of it, and
+ * each slime one colour from the orb's palette instead of drifting through
+ * all of them.
  *
  * `createSlime` gives { group, pose(state) }: `state.clip` is idle, walk,
  * attack, hit or ko, as for the sculpted models (model.js).
@@ -54,7 +55,6 @@ function lobes(count = 5) {
 }
 
 const LOBES = lobes();
-const CORE_LOBES = LOBES.slice(0, 3);
 
 /** Moves a unit sphere's vertices out and in by the lobes, then into a dome sat on y = 0 of height `tall`. */
 function deform(attribute, base, list, { wobble, phase, ampScale, freqScale, phaseScale, sx, sy, dome }) {
@@ -117,14 +117,6 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
   shell.name = 'slime-shell';
   shell.castShadow = true;
 
-  const coreMaterial = new GFX.MeshStandardMaterial({
-    name: 'slime-core', color: new GFX.Color('#0d2a2c'), emissive: new GFX.Color('#38f2b6'), emissiveIntensity: 3.5,
-    roughness: 0.35, transparent: true, opacity: 0.95,
-  });
-  const coreGeometry = new GFX.SphereGeometry(0.3, Math.round(32 * detail) + 8, Math.round(22 * detail) + 6);
-  const coreBase = coreGeometry.attributes.position.array.slice().map((v) => v / 0.3);
-  const core = new GFX.Mesh(coreGeometry, coreMaterial);
-  core.name = 'slime-core';
 
   const glowMaterial = new GFX.ShaderMaterial({
     name: 'slime-glow',
@@ -165,8 +157,8 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
     return b;
   });
 
-  body.add(shell, core, eyes, glow, ...bubbles);
-  for (const o of [glow, core, eyes, ...bubbles]) o.traverse((x) => { x.castShadow = false; });
+  body.add(shell, eyes, glow, ...bubbles);
+  for (const o of [glow, eyes, ...bubbles]) o.traverse((x) => { x.castShadow = false; });
 
   const tint = new GFX.Color(), white = new GFX.Color('#ffffff');
   const own = ((hue % STOPS.length) + STOPS.length) % STOPS.length;
@@ -209,10 +201,6 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
       lastClip = clip;
       deform(shellGeometry.attributes.position, shellBase, LOBES, { wobble, phase, ampScale: 1, freqScale: 2.35, phaseScale: 2.2, sx, sy, dome: true });
       shellGeometry.computeVertexNormals();
-      deform(coreGeometry.attributes.position, coreBase, CORE_LOBES, { wobble, phase, ampScale: 1.5, freqScale: 2.6, phaseScale: -3, sx: 0.3 * sx, sy: 0.3 * sy / 0.72, dome: false });
-      coreGeometry.computeVertexNormals();
-      core.position.set(Math.sin(phase * 0.7) * 0.06, 0.43 * sy + 0.02 + Math.sin(phase * 0.9) * 0.04, Math.cos(phase * 0.6) * 0.06 - 0.05);
-      core.rotation.y = phase * 0.3;
       // The eyes ride the front of the jelly as it squashes.
       eyes.position.set(0, (sy - 0.72) * 0.7 + lift, (sx - 1) * 0.6);
       eyes.scale.set(1, Math.min(1.1, sy / 0.72), 1);
@@ -223,8 +211,6 @@ export function createSlime(GFX, { size = 0.85, hue = 0, detail = 1 } = {}) {
       shellMaterial.color.copy(tint);
       if (!glass) shellMaterial.emissive.copy(tint);
       shellMaterial.attenuationColor.copy(tint).lerp(white, 0.35);
-      coreMaterial.emissive.copy(tint);
-      coreMaterial.emissiveIntensity = (3.4 + Math.sin(phase * 2.1) * 0.6) * glowK;
       glowMaterial.uniforms.uColor.value.copy(tint);
       glowMaterial.uniforms.uStrength.value = 0.72 * glowK * (0.85 + Math.sin(phase * 2.1) * 0.15);
       for (const b of bubbles) {
