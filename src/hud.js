@@ -10,6 +10,9 @@ import { HEROES } from './party.js';
 
 const NAMES = LEVELS.map((level) => level().name);
 
+/** The depths, as the title's stones number them. */
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
+
 export function createHud(root, { onStart }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const top = $('top');
@@ -92,7 +95,7 @@ export function createHud(root, { onStart }) {
         b.type = 'button';
         b.className = 'depth';
         b.disabled = i > saved.reached;
-        b.innerHTML = `<span>${i + 1}</span>${NAMES[i]}`;
+        b.innerHTML = `<span class="numeral">${ROMAN[i] ?? i + 1}</span><span class="name">${NAMES[i]}</span>`;
         b.title = b.disabled ? 'Reach this depth to start from it' : `Start from ${NAMES[i]}`;
         b.addEventListener('click', (e) => { e.stopPropagation(); onStart(i); });
         b.addEventListener('pointerdown', (e) => e.stopPropagation());
