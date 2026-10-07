@@ -1,6 +1,6 @@
 # Dungeon Roller
 
-A rolling dungeon crawler. You roll a d20 down through nine long, torchlit
+A rolling dungeon crawler. You roll a d20 down through twelve long, torchlit
 dungeons, Marble Madness-style. The die is your party of four heroes. Roll
 into a monster and whatever number is on top of the die is the roll the
 party fights with.
@@ -92,11 +92,14 @@ Gold is the score, and the title screen keeps the best.
 | The Catacombs | 2 | Crushers, spikes, slimes going round the ossuary, and a portcullis. Its key is up a side passage, under more spikes. |
 | The Slime Pits | 3 | Sewer chutes with banks instead of walls, pools full of slimes, a spiked drip, and a key kept over the dark. |
 | The Chasm | 4 | Platforms that ferry you across the gaps, platforms that sink down shafts, a zig-zag bridge one tile wide, and a goblin roost. |
-| The Goblin Warrens | 5 | Two gates and two keys, spike runs, a twisting burrow one tile wide, a fungus cavern, goblins, rats and orcs. |
-| The Quarry | 6 | Boulders that get up and stomp after you, stone presses, a cage down a shaft, a spoil chute, and goblin miners. |
-| The Hatchery | 7 | Warm straw, slimes and boulders in the brood halls, and at the bottom the nest of Eggdreessen, a giant cracked egg with something looking out. |
-| The Forge | 8 | Rooms flooded with lava with paths across them, a slag channel, stepping stones, crushers over a bridge, wraiths and orcs. |
-| The Dragon's Lair | 9 | A bit of everything, and then the hoard. The dragon lies across the last way out. |
+| The Fungal Grotto | 5 | Mushroom stalks as tall as pillars, a crossing on a platform, a sewer chute, spikes in the drip, slimes, rats and goblins. |
+| The Goblin Warrens | 6 | Two gates and two keys, spike runs, a twisting burrow one tile wide, a fungus cavern, goblins, rats and orcs. |
+| The Quarry | 7 | Boulders that get up and stomp after you, stone presses, a cage down a shaft, a spoil chute, and goblin miners. |
+| The Hatchery | 8 | Warm straw, slimes and boulders in the brood halls, and at the bottom the nest of Eggdreessen, a giant cracked egg with something looking out. |
+| The Iron Halls | 9 | The orcs' fortress: two gates and two keys, stone presses, a cage down a shaft, boulders in the yard, a throne hall, and a last gauntlet. |
+| The Forge | 10 | Rooms flooded with lava with paths across them, a slag channel, stepping stones, crushers over a bridge, wraiths and orcs. |
+| The Spirit Well | 11 | Down a well on sinking platforms: wraiths drifting round shrines and chapels, long bridges with bats, and a last vigil. |
+| The Dragon's Lair | 12 | A bit of everything, and then the hoard. The dragon lies across the last way out. |
 
 ![The whole of the Crypt, from high above](docs/screenshots/crypt.jpg)
 
@@ -142,7 +145,7 @@ you.
 | `src/physics.js` | Madness's ball physics, unchanged. |
 | `src/dungeon.js` | Tiles with four corner heights, as Madness's courses have. Adds walls, lava, the stairs down, and torchlight baked into the stone. It builds both the meshes and the collision triangles. |
 | `src/dig.js` | Digs a level out a piece at a time: `hall`, `room`, `turn`, `stairs`, `ramp`, `ledge`, `bridge`, `chute`, `ferry`, `shaft`, `exit`. A cursor keeps every piece meeting the last. |
-| `src/levels.js` | The nine levels. |
+| `src/levels.js` | The twelve levels. |
 | `src/monsters.js` | What each monster does and how it looks. |
 | `src/actors.js` | Everything that moves or can be picked up: monsters, crushers, spikes, platforms, portcullises and treasure. |
 | `src/delve.js` | One level with nothing drawn: the rules for falling, burning, fights, keys and the stairs. The game draws it; the tests drive it. |

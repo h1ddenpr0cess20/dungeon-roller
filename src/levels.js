@@ -368,13 +368,86 @@ function chasm() {
   return c;
 }
 
+const GROTTO = {
+  tiles: ['#7c7486', '#6a6274', '#5a4a3e', '#5e566a'], walls: ['#554c62', '#4a4256', '#3e3226', '#4c445a'],
+  ambient: [0.42, 0.36, 0.52], trap: '#4a2a4a', lift: '#7a7088',
+};
+
+function grotto() {
+  const c = new Dungeon({ name: 'The Fungal Grotto', depth: 5, cols: 90, rows: 100, palette: GROTTO, intro: 'Mushrooms taller than a man, and things that live in the damp under them.' });
+  c.room(2, 4, 5, 5, 60, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 60, heading: '+x' });
+  d.hall(5);
+  // The cap room: stalks like pillars, a slime round them.
+  const caps = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [6, 2]]) c.pillar(...caps.tile(a, b), 1.4);
+  c.mob('slime', ...caps.tile(1, -3), { path: loop(caps, 1) }).mob('rat', ...caps.tile(5, 2), { range: 5 });
+  c.gold(...caps.tile(7, -3), 15);
+  d.stairs(4, 2);
+  const ledge = d.ledge(10, { width: 2 });
+  c.mob('rat', ...ledge.tile(4, 0), { range: 4 }).mob('rat', ...ledge.tile(8, 1), { range: 4 });
+  const spores = d.room(7, 7);
+  c.mob('goblin', ...spores.tile(2, 2), { range: 4 }).mob('goblin', ...spores.tile(5, -2), { range: 4 });
+  c.potion(...spores.tile(5, 2));
+  d.turn('+z');
+  d.hall(4);
+  d.ferry(9, { period: 6 });
+  // The great grotto.
+  const great = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...great.tile(a, b), 1.4);
+  c.mob('slime', ...great.tile(1, -4), { path: loop(great, 1, 0, 6) });
+  c.mob('slime', ...great.tile(6, 4), { path: loop(great, 1, 5, 11).reverse() });
+  c.mob('goblin', ...great.tile(5, 0), { range: 6 }).mob('goblin', ...great.tile(8, -2), { range: 6 });
+  c.chest(...great.tile(9, 4), 60);
+  // The key: out of the side of the grotto, over the dark.
+  const side = d.fork().jump(pick(great.tile(5, -6), '+x'));
+  side.hall(3);
+  const reach = side.bridge(7);
+  c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
+  const nook = side.room(5, 7);
+  c.key(...nook.tile(3, 0)).mob('slime', ...nook.tile(1, -2), { path: loop(nook, 1) });
+  c.revive(...nook.tile(2, 2));
+  d.hall(3);
+  const barred = d.hall(6);
+  gate(c, barred, 3);
+  d.turn('+x');
+  d.chute(10, 3);
+  const pool = d.room(9, 9);
+  c.mob('slime', ...pool.tile(1, -3), { path: loop(pool, 1) }).mob('rat', ...pool.tile(5, 2), { range: 5 });
+  c.gold(...pool.tile(7, 3), 20);
+  d.turn('+z');
+  const drip = d.hall(10);
+  c.spike(...across(drip, 3, { period: 2.3 }));
+  c.spike(...across(drip, 7, { period: 2.3, phase: 1.15 }));
+  d.stairs(4, 2);
+  const rot = d.room(9, 9);
+  c.mob('goblin', ...rot.tile(3, -2), { range: 5 }).mob('goblin', ...rot.tile(6, 2), { range: 5 });
+  c.mob('bat', ...rot.tile(4, 0), { path: loop(rot, 2) });
+  c.potion(...rot.tile(7, -3));
+  d.hall(3);
+  d.turn('-x');
+  const span = d.bridge(8);
+  c.mob('bat', ...span.tile(3, 0), { path: [span.tile(1, 2), span.tile(6, -2)] });
+  const wood = d.room(7, 7);
+  c.pillar(...wood.tile(3, 2), 1.4);
+  c.mob('goblin', ...wood.tile(3, -1), { range: 4 }).gold(...wood.tile(5, -2), 15);
+  d.turn('+z');
+  d.ramp(6, 2.5);
+  const mouth = d.room(7, 7);
+  c.mob('slime', ...mouth.tile(1, -2), { path: loop(mouth, 1) });
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
 const WARRENS = {
   tiles: ['#9a7c5c', '#86694c', '#6e5238', '#5e4a36'], walls: ['#6e5640', '#5e4834', '#4e3a28', '#54422e'],
   ambient: [0.44, 0.38, 0.34], trap: '#4a2a1c', lift: '#8a6e50',
 };
 
 function warrens() {
-  const c = new Dungeon({ name: 'The Goblin Warrens', depth: 5, cols: 112, rows: 139, palette: WARRENS, intro: 'Goblins, and what they keep. Two gates, two keys.' });
+  const c = new Dungeon({ name: 'The Goblin Warrens', depth: 6, cols: 112, rows: 139, palette: WARRENS, intro: 'Goblins, and what they keep. Two gates, two keys.' });
   c.room(2, 4, 5, 5, 70, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 70, heading: '+x' });
@@ -479,7 +552,7 @@ const QUARRY = {
 };
 
 function quarry() {
-  const c = new Dungeon({ name: 'The Quarry', depth: 6, cols: 100, rows: 106, palette: QUARRY, intro: 'They cut stone here, until some of the stone got up and walked off.' });
+  const c = new Dungeon({ name: 'The Quarry', depth: 7, cols: 100, rows: 106, palette: QUARRY, intro: 'They cut stone here, until some of the stone got up and walked off.' });
   c.room(2, 4, 5, 5, 80, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 80, heading: '+x' });
@@ -563,7 +636,7 @@ const HATCHERY = {
 };
 
 function hatchery() {
-  const c = new Dungeon({ name: 'The Hatchery', depth: 7, cols: 100, rows: 108, palette: HATCHERY, intro: 'Warm, and quiet, and something down here is about to hatch.' });
+  const c = new Dungeon({ name: 'The Hatchery', depth: 8, cols: 100, rows: 108, palette: HATCHERY, intro: 'Warm, and quiet, and something down here is about to hatch.' });
   c.room(2, 4, 5, 5, 72, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 72, heading: '+x' });
@@ -643,6 +716,90 @@ function hatchery() {
   return c;
 }
 
+const IRON = {
+  tiles: ['#7e828a', '#6c7078', '#5e4a3a', '#62666e'], walls: ['#565a62', '#4a4e56', '#42342a', '#4e525a'],
+  ambient: [0.42, 0.42, 0.48], trap: '#5a2a1a', lift: '#80848c',
+};
+
+function ironHalls() {
+  const c = new Dungeon({ name: 'The Iron Halls', depth: 9, cols: 84, rows: 104, palette: IRON, intro: "The orcs' fortress. Two gates, two keys, and everything that guards them." });
+  c.room(2, 4, 5, 5, 90, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 90, heading: '+x' });
+  d.hall(4);
+  // The gatehouse.
+  const gatehouse = d.room(9, 9);
+  c.mob('orc', ...gatehouse.tile(3, -2), { range: 5 }).mob('orc', ...gatehouse.tile(6, 2), { range: 5 }).mob('goblin', ...gatehouse.tile(4, 3), { range: 5 });
+  const press = d.hall(10);
+  c.crusher(...across(press, 3, { period: 2.3 }));
+  c.crusher(...across(press, 7, { period: 2.3, phase: 1.15 }));
+  d.stairs(4, 2);
+  const guard = d.room(7, 7);
+  c.mob('skeleton', ...guard.tile(2, -2), { range: 4 }).mob('skeleton', ...guard.tile(5, 2), { range: 4 });
+  c.potion(...guard.tile(5, -2));
+  d.turn('+z');
+  d.hall(4);
+  // The armoury.
+  const armoury = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...armoury.tile(a, b), 0.8);
+  c.mob('orc', ...armoury.tile(4, -1), { range: 6 }).mob('orc', ...armoury.tile(8, 2), { range: 6 });
+  c.mob('goblin', ...armoury.tile(2, 3), { range: 6 }).mob('goblin', ...armoury.tile(6, -4), { range: 6 });
+  c.chest(...armoury.tile(9, -4), 80);
+  // The first key, across a gap on a platform.
+  const side1 = d.fork().jump(pick(armoury.tile(5, -6), '+x'));
+  side1.hall(3);
+  side1.ferry(9, { period: 6 });
+  const store = side1.room(5, 7);
+  c.key(...store.tile(3, 0)).mob('orc', ...store.tile(2, 2), { range: 3 });
+  c.revive(...store.tile(1, -2));
+  d.hall(3);
+  const barred1 = d.hall(6);
+  gate(c, barred1, 3);
+  d.turn('+x');
+  const ledge = d.ledge(12, { width: 2 });
+  c.mob('goblin', ...ledge.tile(4, 0), { range: 4 }).mob('goblin', ...ledge.tile(9, 1), { range: 4 });
+  d.shaft(4, { period: 7 });
+  d.hall(3);
+  // The yard, where they break stone.
+  const yard = d.room(9, 9);
+  c.mob('rock', ...yard.tile(3, -2), { range: 5 }).mob('rock', ...yard.tile(6, 2), { range: 5 }).mob('orc', ...yard.tile(4, 0), { range: 5 });
+  // The second key, off the yard's near side.
+  const side2 = d.fork().jump(pick(yard.tile(4, 5), '+z'));
+  side2.hall(2);
+  side2.bridge(4);
+  const cell = side2.room(5, 5);
+  c.key(...cell.tile(3, 0)).mob('skeleton', ...cell.tile(2, 1), { range: 3 }).gold(...cell.tile(4, -1), 25);
+  d.turn('+z');
+  const barred2 = d.hall(6);
+  gate(c, barred2, 3);
+  d.chute(10, 3);
+  // The throne hall.
+  const throne = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...throne.tile(a, b), 0.8);
+  c.mob('orc', ...throne.tile(3, 0), { range: 6 }).mob('orc', ...throne.tile(6, -3), { range: 6 }).mob('orc', ...throne.tile(8, 3), { range: 6 });
+  c.mob('skeleton', ...throne.tile(5, 2), { range: 6 });
+  c.chest(...throne.tile(9, -4), 100).potion(...throne.tile(1, 4));
+  d.hall(3);
+  d.turn('-x');
+  const span = d.bridge(8);
+  c.mob('bat', ...span.tile(3, 0), { path: [span.tile(1, 2), span.tile(6, -2)] });
+  const barracks = d.room(7, 7);
+  c.mob('goblin', ...barracks.tile(2, 2), { range: 4 }).mob('goblin', ...barracks.tile(5, -2), { range: 4 });
+  c.potion(...barracks.tile(5, 2));
+  d.turn('+z');
+  const gauntlet = d.hall(10);
+  c.crusher(...across(gauntlet, 2, { period: 2.2 }));
+  c.spike(...across(gauntlet, 5, { period: 2 }));
+  c.crusher(...across(gauntlet, 8, { period: 2.2, phase: 1.1 }));
+  d.ramp(6, 2.5);
+  const last = d.room(9, 9);
+  c.mob('orc', ...last.tile(4, -2), { range: 5 }).mob('rock', ...last.tile(5, 2), { range: 5 });
+  c.gold(...last.tile(7, 3), 30);
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
 const FORGE = {
   tiles: ['#6a6460', '#5a5450', '#4a3a30', '#3e3a38'], walls: ['#4a4442', '#3e3936', '#33281f', '#34302e'],
   ambient: [0.5, 0.36, 0.3], trap: '#4a2418', lift: '#6e6662',
@@ -660,7 +817,7 @@ function lavaRoom(c, d, length, width, keep, { below = 0.6 } = {}) {
 }
 
 function forge() {
-  const c = new Dungeon({ name: 'The Forge', depth: 8, cols: 155, rows: 123, palette: FORGE, intro: 'Rivers of fire, and the hammers of the deep. Stay on the stone.' });
+  const c = new Dungeon({ name: 'The Forge', depth: 10, cols: 155, rows: 123, palette: FORGE, intro: 'Rivers of fire, and the hammers of the deep. Stay on the stone.' });
   c.room(2, 4, 5, 5, 80, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 80, heading: '+x' });
@@ -750,13 +907,96 @@ function forge() {
   return c;
 }
 
+const WELL = {
+  tiles: ['#7a8296', '#687084', '#4e4a5e', '#5e667a'], walls: ['#525a6e', '#464e62', '#3a3448', '#4c5468'],
+  ambient: [0.34, 0.4, 0.58], trap: '#2a3a5a', lift: '#7a8298',
+};
+
+function well() {
+  const c = new Dungeon({ name: 'The Spirit Well', depth: 11, cols: 82, rows: 98, palette: WELL, intro: 'A well that goes down further than wells go. The dead drift up it.' });
+  c.room(2, 4, 5, 5, 110, { torches: 3 });
+  c.start = { x: 4, z: 6 };
+  const d = digger(c, { x: 7, z: 6, h: 110, heading: '+x' });
+  d.hall(5);
+  // The shrine.
+  const shrine = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [2, 2], [6, -2], [6, 2]]) c.pillar(...shrine.tile(a, b), 0.8);
+  c.mob('wraith', ...shrine.tile(1, -3), { path: loop(shrine, 1) });
+  c.mob('skeleton', ...shrine.tile(4, 0), { range: 5 }).mob('skeleton', ...shrine.tile(7, 2), { range: 5 });
+  const span1 = d.bridge(8);
+  c.mob('bat', ...span1.tile(3, 0), { path: [span1.tile(1, 2), span1.tile(6, -2)] });
+  const landing = d.room(7, 7);
+  c.mob('skeleton', ...landing.tile(3, 0), { range: 4 }).potion(...landing.tile(5, 2));
+  // Down the well on a platform.
+  d.shaft(5, { period: 7 });
+  d.hall(3);
+  d.turn('+z');
+  const bones = d.hall(10);
+  c.spike(...across(bones, 3, { period: 2.2 }));
+  c.spike(...across(bones, 7, { period: 2.2, phase: 1.1 }));
+  // The hall of echoes.
+  const echoes = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...echoes.tile(a, b), 0.8);
+  c.mob('wraith', ...echoes.tile(1, -4), { path: loop(echoes, 1, 0, 6) });
+  c.mob('wraith', ...echoes.tile(6, 4), { path: loop(echoes, 1, 5, 11).reverse() });
+  c.mob('skeleton', ...echoes.tile(5, 0), { range: 6 }).mob('skeleton', ...echoes.tile(8, -2), { range: 6 });
+  c.chest(...echoes.tile(9, 4), 90);
+  // The key, kept across the dark.
+  const side = d.fork().jump(pick(echoes.tile(5, -6), '+x'));
+  side.hall(3);
+  const reach = side.bridge(7);
+  c.mob('bat', ...reach.tile(3, 0), { path: [reach.tile(1, 2), reach.tile(6, -2)] });
+  const reliquary = side.room(5, 7);
+  c.key(...reliquary.tile(3, 0)).mob('wraith', ...reliquary.tile(1, -2), { path: loop(reliquary, 1) });
+  c.revive(...reliquary.tile(2, 2));
+  d.hall(3);
+  const barred = d.hall(6);
+  gate(c, barred, 3);
+  d.turn('+x');
+  const ledge = d.ledge(12, { width: 2 });
+  c.mob('skeleton', ...ledge.tile(4, 0), { range: 4 }).mob('skeleton', ...ledge.tile(9, 1), { range: 4 });
+  d.bridge(6);
+  const head = d.room(7, 7);
+  c.mob('wraith', ...head.tile(3, 0), { path: loop(head, 1) }).mob('bat', ...head.tile(4, 2), { path: [head.tile(1, -2), head.tile(5, 2)] });
+  d.turn('+z');
+  // Further down the well.
+  d.shaft(5, { period: 7 });
+  d.hall(3);
+  const chapel = d.room(9, 9);
+  c.mob('wraith', ...chapel.tile(1, -3), { path: loop(chapel, 1) });
+  c.mob('skeleton', ...chapel.tile(4, 2), { range: 5 }).mob('skeleton', ...chapel.tile(6, -2), { range: 5 });
+  c.potion(...chapel.tile(7, 3));
+  d.hall(3);
+  d.turn('-x');
+  const span2 = d.bridge(10);
+  c.mob('bat', ...span2.tile(3, 0), { path: [span2.tile(1, 2), span2.tile(6, -2)] });
+  c.mob('bat', ...span2.tile(8, 0), { path: [span2.tile(6, -2), span2.tile(9, 2)] });
+  const niche = d.room(7, 7);
+  c.mob('skeleton', ...niche.tile(3, 0), { range: 4 });
+  c.revive(...niche.tile(5, 2)).gold(...niche.tile(1, -2), 20);
+  d.turn('+z');
+  const press = d.hall(10);
+  c.crusher(...across(press, 3, { period: 2.3 }));
+  c.crusher(...across(press, 7, { period: 2.3, phase: 1.15 }));
+  d.stairs(5, 2.5);
+  // The last vigil.
+  const vigil = d.room(9, 9);
+  for (const [a, b] of [[2, -2], [2, 2], [6, -2], [6, 2]]) c.pillar(...vigil.tile(a, b), 0.8);
+  c.mob('wraith', ...vigil.tile(1, -3), { path: loop(vigil, 1) }).mob('wraith', ...vigil.tile(4, 0), { path: [vigil.tile(4, -1), vigil.tile(4, 1)] });
+  c.mob('skeleton', ...vigil.tile(5, 1), { range: 5 }).mob('skeleton', ...vigil.tile(7, -3), { range: 5 });
+  c.chest(...vigil.tile(7, 4), 110);
+  d.hall(3);
+  d.exit(3);
+  return c;
+}
+
 const LAIR = {
   tiles: ['#8a6a5a', '#74584a', '#5a4030', '#4e3a32'], walls: ['#5e463a', '#4e3a30', '#3e2c22', '#46342c'],
   ambient: [0.46, 0.34, 0.32], trap: '#4a2016', lift: '#7a6050',
 };
 
 function lair() {
-  const c = new Dungeon({ name: "The Dragon's Lair", depth: 9, cols: 83, rows: 130, palette: LAIR, intro: 'At the bottom of everything, something large is asleep on the gold.' });
+  const c = new Dungeon({ name: "The Dragon's Lair", depth: 12, cols: 83, rows: 130, palette: LAIR, intro: 'At the bottom of everything, something large is asleep on the gold.' });
   c.room(2, 4, 5, 5, 96, { torches: 3 });
   c.start = { x: 4, z: 6 };
   const d = digger(c, { x: 7, z: 6, h: 96, heading: '+x' });
@@ -844,7 +1084,7 @@ function lair() {
   return c;
 }
 
-export const LEVELS = [crypt, catacombs, pits, chasm, warrens, quarry, hatchery, forge, lair];
+export const LEVELS = [crypt, catacombs, pits, chasm, grotto, warrens, quarry, hatchery, ironHalls, forge, well, lair];
 
 export function loadLevel(index) {
   return LEVELS[index]();
