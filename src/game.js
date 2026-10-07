@@ -44,6 +44,8 @@ export function createGame({ stage, hud, input, audio, storage }) {
 
   let delve = null;
   let group = null;
+  /** The lava tiles of the level, as [x, height, z], for sparks to come up off. */
+  let lavaTiles = [];
   let decor = [];
   let state = 'title';  // title · ready · play · lost · battle · clear · over · won
   let paused = false;
@@ -78,7 +80,21 @@ export function createGame({ stage, hud, input, audio, storage }) {
     const b = delve.ball;
     stage.target.set(b.x, b.y, b.z);
     hud.map(delve);
+    lavaTiles = [];
+    const l = delve.level;
+    for (let z = 0; z < l.rows; z++) for (let x = 0; x < l.cols; x++) if (l.cell(x, z)?.kind === 'lava') lavaTiles.push([x, l.cell(x, z).h[0], z]);
     warmUp();
+  }
+
+  /** Sparks off the lava near the die, a few a second. */
+  function lavaSparks(dt) {
+    const b = delve.ball;
+    for (let n = 0; n < 3; n++) {
+      if (!lavaTiles.length || Math.random() > dt * 14) continue;
+      const [x, h, z] = lavaTiles[Math.floor(Math.random() * lavaTiles.length)];
+      if (Math.abs(x - b.x) > 10 || Math.abs(z - b.z) > 10) continue;
+      effects.ember(x + Math.random(), h + 0.05, z + Math.random());
+    }
   }
 
   /**
@@ -376,6 +392,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
 
     delve.actors.sync(dt, stage.time, { focus: delve.ball });
     for (const d of decor) d.update(stage.time);
+    lavaSparks(dt);
     effects.update(dt);
     audio.rolling(state === 'play' && b.grounded ? Math.hypot(b.vx, b.vz) : 0, b.grounded);
     hud.tick(dt, delve);

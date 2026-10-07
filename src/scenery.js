@@ -1,6 +1,8 @@
+import { createLavaMaterial } from './lava.js';
+
 /**
  * The dungeon as it is drawn: flagstone floors, brick walls falling away into
- * the dark, glowing lava, torches with live flames, and the stairs down — a
+ * the dark, the lava (lava.js), torches with live flames, and the stairs down — a
  * ring of runes on the floor under a stone arch. Every texture is painted on
  * a canvas at startup; under node (the tests) there is no canvas and the
  * meshes go without.
@@ -121,34 +123,6 @@ export function brickTexture(GFX) {
   });
 }
 
-/** Lava: bright and molten, under a crust broken into plates. */
-export function lavaTexture(GFX) {
-  return cached('lava', () => {
-    const size = 256;
-    const rnd = random(23);
-    const [c, ctx] = canvas(size);
-    const g = ctx.createRadialGradient(size / 2, size / 2, 10, size / 2, size / 2, size * 0.75);
-    g.addColorStop(0, '#fff2a0');
-    g.addColorStop(0.5, '#ffa21a');
-    g.addColorStop(1, '#ff5a0a');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    for (let k = 0; k < 16; k++) {
-      const x = rnd() * size, y = rnd() * size, r = 18 + rnd() * 30;
-      ctx.fillStyle = `rgba(${60 + rnd() * 40 | 0}, ${10 + rnd() * 10 | 0}, 4, ${0.55 + rnd() * 0.35})`;
-      ctx.beginPath();
-      for (let a = 0; a < 7; a++) {
-        const t = (a / 7) * Math.PI * 2, rr = r * (0.7 + rnd() * 0.4);
-        const px = x + Math.cos(t) * rr, py = y + Math.sin(t) * rr;
-        if (a) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-    }
-    return { map: texture(GFX, c), bump: null };
-  });
-}
-
 /** A ring of runes, glowing, for the floor of the stairs down. */
 function runeTexture(GFX) {
   return cached('runes', () => {
@@ -248,18 +222,18 @@ export function createDungeonMeshes(GFX, built) {
   }
   let lavaMaterial = null;
   if (built.lava.position.length) {
-    lavaMaterial = new GFX.MeshBasicMaterial({ name: 'lava', vertexColors: true, map: lavaTexture(GFX).map });
+    lavaMaterial = createLavaMaterial(GFX);
     const lava = new GFX.Mesh(geometry(built.lava), lavaMaterial);
     lava.frustumCulled = false;
     group.add(lava);
   }
   return {
     group,
-    /** The lava breathing, brighter and dimmer. */
+    /** The lava moving: its plates drifting, its pools welling, its bubbles bursting. */
     update(time) {
       if (!lavaMaterial) return;
-      const k = 0.88 + 0.12 * Math.sin(time * 1.7) + 0.05 * Math.sin(time * 4.3);
-      lavaMaterial.color.setRGB(k, k * 0.96, k * 0.9);
+      lavaMaterial.uniforms.uTime.value = time;
+      lavaMaterial.uniforms.uBright.value = 0.94 + 0.06 * Math.sin(time * 1.7);
     },
   };
 }

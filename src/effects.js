@@ -94,6 +94,13 @@ export function createEffects(GFX, scene) {
       }
     },
 
+    /** One spark lifting off the lava and drifting up, slowly, as it dies. */
+    ember(x, y, z) {
+      const m = new GFX.Mesh(mote, glow(Math.random() < 0.6 ? '#ff7a1a' : '#ffd23a'));
+      m.scale.setScalar(0.5 + Math.random() * 0.6);
+      spawn(m, { x, y, z, vx: (Math.random() - 0.5) * 0.3, vy: 0.5 + Math.random() * 0.7, vz: (Math.random() - 0.5) * 0.3, life: 1.2 + Math.random() * 1.4, floaty: -0.05, spin: 0, bounce: 0 });
+    },
+
     dust(x, y, z) {
       for (let i = 0; i < 14; i++) {
         const m = new GFX.Mesh(grit, dirt);
