@@ -81,6 +81,8 @@ async function place(names, detail = 1) {
   x = -total / 2;
   models.forEach((m, i) => {
     m.group.position.x = x + widths[i] * 1.1;
+    // A flyer's middle is its origin: lift it clear of the floor.
+    if (boxes[i].min.y < -0.01) m.group.position.y = -boxes[i].min.y + 0.15;
     x += widths[i] * 2.2;
     scene.add(m.group);
   });
