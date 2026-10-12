@@ -163,6 +163,7 @@ you.
 | `npm test` | `node:test`. Covers the physics, the dungeon builder and digger, the die, the battle, the party, the monsters and traps, and the rules. An autopilot plans its own way through every level. It has to get the party down the stairs alive, without losing the die once, and take more than a minute doing it. |
 | `npm run lint` | ESLint |
 | `node scripts/map.js 3` | Prints a level as text, for laying one out (`--heights` for the floor heights). |
+| `node scripts/reel.js` | Gameplay reels for social media, into `reels/`: upright 1080×1920 films of the game as a phone shows it, played by the autopilot with its own music and sound, each ending on a card with the address. `scripts/reels.js` says which. They are filmed a frame at a time in headless Chromium (`reel.html`, `src/reel/`), so there's no GPU needed, only ffmpeg and a quarter of an hour a reel. The title and card use Cinzel, the face the design names, from Fontsource. |
 
 The renderer is three.js-shaped but isn't three.js; see
 `src/vendor/gfx/LICENSE` for what it ports from it.

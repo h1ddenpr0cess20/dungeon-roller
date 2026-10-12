@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="A rolling dungeon crawler: roll Nat's d20 down long, torchlit dungeons. Run into a monster and the number on top is the roll your party of four fights with.">
+<title>Dungeon Roller — reels</title>
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/reel/reel.css">
+<style>
+  /* The film's own words: no banner under the opening line, and the title's gilt crest on the card. */
+  body.hooked #banner { visibility: hidden; }
+  /* Nothing over the battle screen but the thumb on its button. */
+  #battle:not([hidden]) ~ #film #pill, #battle:not([hidden]) ~ #film #hook { visibility: hidden; }
+  #card .crest { margin: 0; display: grid; justify-items: center; gap: 0.06em; font-family: Cinzel, serif; font-size: 58px; font-weight: 700; letter-spacing: 0.12em; line-height: 0.9; text-transform: uppercase; }
+  #card .crest .word {
+    padding: 0 0.1em; color: transparent; -webkit-background-clip: text; background-clip: text;
+    background-image: linear-gradient(180deg, #fff1c4 0%, #f2c862 34%, #b9781f 62%, #e8b04c 78%, #7a4612 100%);
+    filter: drop-shadow(0 2px 0 #2a1406) drop-shadow(0 5px 0 #0c0604) drop-shadow(0 0 22px rgba(255, 120, 40, 0.5));
+  }
+  #card .crest .rule { display: flex; align-items: center; gap: 0.25em; width: 100%; max-width: 6.2em; font-size: 0.32em; }
+  #card .crest .rule i { flex: 1; height: 2px; background: linear-gradient(90deg, rgba(217, 164, 65, 0), #d9a441 40%, #d9a441 60%, rgba(217, 164, 65, 0)); box-shadow: 0 1px 0 #000; }
+  #card .crest .rule b {
+    display: grid; place-items: center; width: 1.9em; height: 1.9em; font-size: 0.62em; letter-spacing: 0; color: #ffe6a6;
+    background: radial-gradient(circle at 40% 35%, #4a3a6a, #1e1630 70%); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    text-shadow: 0 0 8px rgba(255, 210, 120, 0.8);
+  }
+  #card .tag { margin: 16px 0 0; font-family: Cinzel, serif; font-style: italic; letter-spacing: 0.42em; font-size: 13px; color: #c9a46a; text-transform: lowercase; text-shadow: 0 2px 0 #000; }
+  #card .url { font-weight: 700; letter-spacing: 0.04em; }
+  #hook { font-size: 40px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+
+<header id="top" hidden>
+  <div id="level"></div>
+  <div class="purse"><span class="label">gold</span><span id="gold">0</span></div>
+  <div class="carried">
+    <div class="keyring none"><span class="label">keys</span><span id="keys"></span></div>
+    <div class="vials none"><span class="label">revive</span><span id="revives"></span></div>
+  </div>
+</header>
+
+<canvas id="map" width="180" height="180" hidden aria-label="Map of what has been seen"></canvas>
+<ul id="party" hidden aria-label="The party"></ul>
+<div id="roll" hidden aria-label="The number on top of the die"><span class="n">20</span><span class="label">on top</span></div>
+
+<div id="banner" hidden></div>
+<div id="pause" hidden>PAUSED<small>P to carry on</small></div>
+
+<section id="title" hidden>
+  <div class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <header class="crest">
+    <h1><span class="word">Dungeon</span><span class="rule" aria-hidden="true"><i></i><b>20</b><i></i></span><span class="word">Roller</span></h1>
+    <p class="tag">roll into trouble</p>
+  </header>
+  <div class="menu">
+    <button id="start" type="button"><span>Descend</span></button>
+    <div id="levels" aria-label="Start from a depth"></div>
+    <p id="best"></p>
+    <p class="help">
+      <span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> roll</span>
+      <span>hold the mouse or a finger — roll toward it</span>
+      <span>whatever is on top when you hit a monster is your roll</span>
+      <span class="keys"><kbd>Q</kbd><kbd>E</kbd> or right-drag turn · wheel or <kbd>+</kbd><kbd>−</kbd> zoom · <kbd>C</kbd> reset view</span>
+      <span class="touch">two fingers: pinch to zoom, twist to turn</span>
+      <span class="keys"><kbd>P</kbd> pause · <kbd>M</kbd> mute</span>
+    </p>
+  </div>
+</section>
+
+<button id="mute" type="button" aria-pressed="false">sound on</button>
+<pre id="error" hidden></pre>
+
+<script type="module" src="/src/reel/recorder.js"></script>
+</body>
+</html>

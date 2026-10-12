@@ -276,11 +276,12 @@ export function createGame({ stage, hud, input, audio, storage }) {
     saved = storage.record(gold);
   }
 
-  function physics(push) {
+  function physics(push, auto = null) {
     const live = state === 'play';
     // Burnt or squashed, the die stays where it is; off an edge, it keeps falling.
     const moving = dieMesh.visible && !(state === 'lost' && lostHow !== 'fell');
     const out = stepDelve(delve, push, STEP, { live, moving });
+    if (auto) debug.pilot.saw(out);
     const b = delve.ball;
     if (out.impact > 2.5) {
       audio.clatter(out.impact);
@@ -364,7 +365,9 @@ export function createGame({ stage, hud, input, audio, storage }) {
       accumulator = Math.min(accumulator + dt, STEP * 12);
       while (accumulator >= STEP && state !== 'battle') {
         accumulator -= STEP;
-        physics(state === 'play' ? push : [0, 0]);
+        // Steered by the autopilot (the reels), if one is aboard; by the controls if not.
+        const auto = state === 'play' && debug.pilot ? debug.pilot.next() : null;
+        physics(state === 'play' ? auto?.push ?? push : [0, 0], auto);
       }
     }
 
@@ -440,9 +443,13 @@ export function createGame({ stage, hud, input, audio, storage }) {
     target.z += (b.z - target.z) * k;
   }
 
-  /** For tests and the console: the level, the party, and a camera override (`look`). */
+  /**
+   * For tests and the console: the level, the party, a camera override
+   * (`look`), and something to steer the die in place of the controls
+   * (`pilot`: the autopilot's `createPilot()`, asked every step while in play).
+   */
   const debug = {
-    stage, look: null,
+    stage, look: null, pilot: null,
     get delve() { return delve; },
     get ball() { return delve.ball; },
     get party() { return party; },

@@ -202,20 +202,18 @@ function waypoints(delve, moves, from) {
   }
   return out;
 }
-
 /**
- * Drive level `index` to the stairs. Returns whether it got there, how long
- * it took, every way the die was lost or the party hurt, the fights, and the
- * party as it came out.
+ * Steers the die through `delve`, a step at a time, for whatever runs the
+ * steps: `drive()` below, or the game itself (the reels). `next()` is the push
+ * along the ground for the coming step, or `{ stuck }` if it can find no way
+ * on; `saw(out)` is told what that step did. After the die is lost, it plans
+ * again from wherever it is put back. `stuck` turns up too if the die sits
+ * still for twenty seconds with nothing to wait for.
  */
-export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
-  const delve = createDelve(GFX, index);
+export function createPilot(delve) {
   const level = delve.level;
   const net = graph(level);
   const b = delve.ball;
-  const random = seeded(seed);
-  const party = createParty();
-  const losses = [], harms = [], fights = [];
 
   const exits = [];
   for (let z = 0; z < level.rows; z++) for (let x = 0; x < level.cols; x++) if (level.cell(x, z)?.kind === 'exit') exits.push([x, z]);
@@ -235,55 +233,94 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
     wp = 0;
     return moves !== null;
   };
-  if (!replan()) return { finished: false, time: 0, losses, harms, fights, party, stuck: 'no way to the stairs' };
+
+  let still = 0;
+  let lost = false;
+  let stuck = replan() ? null : 'no way to the stairs';
+  let target = goal();
+  // Whether the last push was a wait, for `saw()`.
+  let waiting = false;
+
+  return {
+    get stuck() { return stuck; },
+
+    next() {
+      if (stuck) return { stuck };
+      if (lost) { lost = false; replan(); }
+      let w, d, dx, dz;
+      // Past every waypoint already reached; a route that is all of them is planned again, but not forever.
+      for (let tries = 0; ; tries++) {
+        if (tries > 1000) return { stuck: (stuck = { at: here(), goal: target }) };
+        if (route.length === 0 || wp >= route.length) {
+          const next = goal();
+          if (!replan() || route.length === 0) return { stuck: (stuck = { at: here(), goal: next }) };
+          target = next;
+        }
+        w = route[wp];
+        let [tx, tz] = w.at;
+        if (w.on !== undefined) {
+          const box = delve.actors.lifts[w.on].box;
+          tx = box.min[0] + w.at[0];
+          tz = box.min[2] + w.at[1];
+        }
+        dx = tx - b.x; dz = tz - b.z;
+        d = Math.hypot(dx, dz);
+        waiting = Boolean(w.until && !w.until(delve));
+        if (!waiting && d < (w.radius ?? 0.5)) { wp++; continue; }
+        break;
+      }
+
+      const speed = w.speed ?? 3.6;
+      const want = waiting || w.stop ? Math.min(speed, d * 2.5) : speed;
+      const vx = d > 1e-3 ? (dx / d) * want : 0;
+      const vz = d > 1e-3 ? (dz / d) * want : 0;
+      let px = (vx - b.vx) * 0.9;
+      let pz = (vz - b.vz) * 0.9;
+      const l = Math.hypot(px, pz);
+      if (l > 1) { px /= l; pz /= l; }
+      return { push: [px, pz], waiting };
+    },
+
+    saw(out) {
+      if (Math.hypot(b.vx, b.vz) < 0.05 && !waiting) still += STEP; else still = 0;
+      if (still > 20) stuck ??= { at: here(), wp, of: route.length, goal: target };
+      if (out.picked.some((p) => p.kind === 'key')) replan();
+      if (out.outcome && out.outcome !== 'exit') lost = true;
+    },
+  };
+}
+
+/**
+ * Drive level `index` to the stairs. Returns whether it got there, how long
+ * it took, every way the die was lost or the party hurt, the fights, and the
+ * party as it came out.
+ */
+export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
+  const delve = createDelve(GFX, index);
+  const b = delve.ball;
+  const random = seeded(seed);
+  const party = createParty();
+  const losses = [], harms = [], fights = [];
+  const here = () => [Math.floor(b.x), Math.floor(b.z)];
+  const pilot = createPilot(delve);
+  if (pilot.stuck) return { finished: false, time: 0, losses, harms, fights, party, stuck: pilot.stuck };
 
   let down = 0;
   let t = 0;
-  let still = 0;
-  let target = goal();
-
   while (t < limit) {
     t += STEP;
     if (down > 0) {
       down -= STEP;
       stepDelve(delve, [0, 0], STEP, { live: false, moving: false });
-      if (down <= 0) { putBack(delve); replan(); }
+      if (down <= 0) putBack(delve);
       continue;
     }
-    if (route.length === 0 || wp >= route.length) {
-      const next = goal();
-      if (!replan() || route.length === 0) return { finished: false, time: t, losses, harms, fights, party, stuck: { at: here(), goal: next } };
-      target = next;
-    }
-
-    const w = route[wp];
-    let [tx, tz] = w.at;
-    if (w.on !== undefined) {
-      const box = delve.actors.lifts[w.on].box;
-      tx = box.min[0] + w.at[0];
-      tz = box.min[2] + w.at[1];
-    }
-    const dx = tx - b.x, dz = tz - b.z;
-    const d = Math.hypot(dx, dz);
-    const waiting = w.until && !w.until(delve);
-    if (!waiting && d < (w.radius ?? 0.5)) {
-      wp++;
-      continue;
-    }
-
-    const speed = w.speed ?? 3.6;
-    const want = waiting || w.stop ? Math.min(speed, d * 2.5) : speed;
-    const vx = d > 1e-3 ? (dx / d) * want : 0;
-    const vz = d > 1e-3 ? (dz / d) * want : 0;
-    let px = (vx - b.vx) * 0.9;
-    let pz = (vz - b.vz) * 0.9;
-    const l = Math.hypot(px, pz);
-    if (l > 1) { px /= l; pz /= l; }
-
-    const out = stepDelve(delve, [px, pz], STEP);
+    const move = pilot.next();
+    if (move.stuck) return { finished: false, time: t, losses, harms, fights, party, stuck: move.stuck };
+    const out = stepDelve(delve, move.push, STEP);
+    pilot.saw(out);
     sample?.(delve);
-    if (Math.hypot(b.vx, b.vz) < 0.05 && !waiting) still += STEP; else still = 0;
-    if (still > 20) return { finished: false, time: t, losses, harms, fights, party, stuck: { at: here(), wp, of: route.length, goal: target } };
+    if (pilot.stuck) return { finished: false, time: t, losses, harms, fights, party, stuck: pilot.stuck };
 
     if (out.outcome === 'exit') return { finished: true, time: t, losses, harms, fights, party, delve };
     if (out.fight) {
@@ -303,10 +340,9 @@ export function drive(index, { limit = 900, seed = 7, sample = null } = {}) {
     for (const p of out.picked) {
       if (p.kind === 'potion') heal(party, p.amount);
       if (p.kind === 'revive') { party.revives += 1; revive(party); }
-      if (p.kind === 'key') replan();
     }
     if (out.outcome) {
-      losses.push({ how: out.outcome, at: [b.x.toFixed(1), b.y.toFixed(1), b.z.toFixed(1)], wp, time: t.toFixed(1) });
+      losses.push({ how: out.outcome, at: [b.x.toFixed(1), b.y.toFixed(1), b.z.toFixed(1)], time: t.toFixed(1) });
       hurt(party, HARM[out.outcome], random);
       revive(party);
       down = 1.7;
