@@ -1,13 +1,13 @@
 import { createBattleScreen, resolveBattle } from './battle.js';
-import { DIE_SCALE, dieModel, reachBelow, showNumber } from './die.js';
+import { DIE_SCALE, dieModel, reachBelow, showNumber } from 'madness-engine/heroes/die';
 import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from './delve.js';
 import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
 import { BOARD_DETAIL, MONSTERS } from './monsters.js';
 import { readyAll } from './models/library.js';
 import { createParty, grant, heal, hurt, rest, revive, rollBonus, seeded, wiped } from './party.js';
-import { turn } from './physics.js';
-import { createDungeonMeshes, createExit, createTorches } from './scenery.js';
+import { turn } from 'madness-engine/physics';
+import { createDungeonMeshes, createExit, createTorches } from 'madness-engine/scenery/dungeon';
 
 /**
  * The game: the levels one after another, down and down, with one party.

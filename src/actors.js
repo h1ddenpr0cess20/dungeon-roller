@@ -1,8 +1,8 @@
 import { createMonsterMesh, FLIGHT, KNOCKED_OUT, MONSTERS } from './monsters.js';
-import { collideBalls, createBall, PUSH, stepBall } from './physics.js';
-import { stoneTexture } from './scenery.js';
+import { collideBalls, createBall, PUSH, stepBall } from 'madness-engine/physics';
+import { stoneTexture } from 'madness-engine/scenery/dungeon';
 import { isBaked, ready } from './models/library.js';
-import { createStatic } from './models/model.js';
+import { createStatic } from 'madness-engine/models/model';
 import { PROPS } from './models/props/index.js';
 
 /**

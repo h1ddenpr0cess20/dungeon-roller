@@ -7,9 +7,10 @@
  * is loaded from its file.
  */
 
-import * as GFX from '../vendor/gfx/index.js';
-import { createRenderer, paintVault } from '../stage.js';
-import { createModel } from './model.js';
+import * as GFX from 'madness-engine/gfx';
+import { paintRoom as paintVault } from 'madness-engine/textures/rooms/vault';
+import { createRenderer } from '../stage.js';
+import { createModel } from 'madness-engine/models/model';
 import { BUILT, standUp } from './looks.js';
 import { CAST } from './cast/index.js';
 import { PROPS } from './props/index.js';

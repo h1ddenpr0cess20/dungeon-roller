@@ -1,7 +1,7 @@
 import { createAudio } from './audio.js';
 import { createGame } from './game.js';
 import { createHud } from './hud.js';
-import { createInput } from './input.js';
+import { createInput } from 'madness-engine/input';
 import { preload } from './models/library.js';
 import { createStage } from './stage.js';
 import { createStorage } from './storage.js';

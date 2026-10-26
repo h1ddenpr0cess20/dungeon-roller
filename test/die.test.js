@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import * as GFX from '../src/vendor/gfx/index.js';
-import { createDieState, DIE_RADIUS, DIE_SCALE, dieModel, reachBelow, rotate, showNumber, stepDie, topFace } from '../src/die.js';
-import { createBall } from '../src/physics.js';
+import * as GFX from 'madness-engine/gfx';
+import { createDieState, DIE_RADIUS, DIE_SCALE, dieModel, reachBelow, rotate, showNumber, stepDie, topFace } from 'madness-engine/heroes/die';
+import { createBall } from 'madness-engine/physics';
 
 const model = dieModel(GFX);
 const STEP = 1 / 120;
