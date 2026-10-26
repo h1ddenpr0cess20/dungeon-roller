@@ -1,4 +1,4 @@
-import { World } from './physics.js';
+import { World } from 'madness-engine/physics';
 
 /**
  * A dungeon level is a grid of tiles, as a Madness course is: each tile has

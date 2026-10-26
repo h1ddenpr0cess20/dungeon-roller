@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import * as GFX from '../src/vendor/gfx/index.js';
+import * as GFX from 'madness-engine/gfx';
 import { alongLoop, createActors, hammerAt, liftAt, spikesAt } from '../src/actors.js';
 import { buildDungeon, Dungeon } from '../src/dungeon.js';
-import { createBall } from '../src/physics.js';
+import { createBall } from 'madness-engine/physics';
 
 const STEP = 1 / 120;
 

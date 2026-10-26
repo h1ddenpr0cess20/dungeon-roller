@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import * as GFX from '../src/vendor/gfx/index.js';
+import * as GFX from 'madness-engine/gfx';
 import { LEVELS } from '../src/levels.js';
 import { createDelve, putBack, showing, STEP, stepDelve } from '../src/delve.js';
 

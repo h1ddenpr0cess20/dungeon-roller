@@ -9,11 +9,11 @@
  * tests hold every level to that.
  */
 
-import * as GFX from '../../src/vendor/gfx/index.js';
+import * as GFX from 'madness-engine/gfx';
 import { hammerAt, liftAt, spikesAt } from '../../src/actors.js';
 import { resolveBattle } from '../../src/battle.js';
 import { createDelve, HARM, putBack, STEP, stepDelve } from '../../src/delve.js';
-import { FALL_LIMIT } from '../../src/physics.js';
+import { FALL_LIMIT } from 'madness-engine/physics';
 import { createParty, grant, heal, hurt, revive, rollBonus, seeded, wiped } from '../../src/party.js';
 
 /** The furthest it will drop off a ledge: well short of a drop that hurts. */

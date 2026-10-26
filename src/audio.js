@@ -1,4 +1,4 @@
-import { createScore, themeFor } from './score.js';
+import { createScore, themeFor } from 'madness-engine/music/score.dungeon-roller';
 
 /**
  * Every sound, made on the spot with Web Audio — no samples — as Madness

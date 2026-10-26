@@ -141,10 +141,7 @@ you.
 
 | | |
 |---|---|
-| `src/vendor/gfx/` | Alan's renderer, as Madness has it. It uses WebGPU where the browser has it and WebGL 2 where it doesn't (`?renderer=webgl` pins it). |
-| `src/nat/geometry.js` | Nat's d20, copied from `nat/src/client/nat/geometry.js`. The only change is a guard so the tests can number the faces under node. |
-| `src/die.js` | Turns the die as it rolls, and settles it onto a face. Also works out which number is on top. Everything is plain arrays at the physics rate, so the tests roll the same numbers as the screen. |
-| `src/physics.js` | Madness's ball physics, unchanged. |
+| [madness-engine](https://github.com/h1ddenpr0cess20/madness-engine) | The engine the game runs on: Alan's renderer (WebGPU where the browser has it, WebGL 2 where it doesn't; `?renderer=webgl` pins it), the ball physics, the input and camera, the sculpting kit, and the library's d20, monsters, treasure, dungeon scenery, lava and score. |
 | `src/dungeon.js` | Tiles with four corner heights, as Madness's courses have. Adds walls, lava, the stairs down, and torchlight baked into the stone. It builds both the meshes and the collision triangles. |
 | `src/dig.js` | Digs a level out a piece at a time: `hall`, `room`, `turn`, `stairs`, `ramp`, `ledge`, `bridge`, `chute`, `ferry`, `shaft`, `exit`. A cursor keeps every piece meeting the last. |
 | `src/levels.js` | The twelve levels. |
@@ -165,4 +162,4 @@ you.
 | `node scripts/map.js 3` | Prints a level as text, for laying one out (`--heights` for the floor heights). |
 
 The renderer is three.js-shaped but isn't three.js; see
-`src/vendor/gfx/LICENSE` for what it ports from it.
+`madness-engine/src/gfx/LICENSE` for what it ports from it.

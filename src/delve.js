@@ -1,9 +1,9 @@
 import { createActors } from './actors.js';
-import { createDieState, DIE_RADIUS, dieModel, stepDie, topFace } from './die.js';
+import { createDieState, DIE_RADIUS, dieModel, stepDie, topFace } from 'madness-engine/heroes/die';
 import { buildDungeon, DEPTH } from './dungeon.js';
 import { loadLevel } from './levels.js';
-import { BREAK_SPEED, createBall, placeBall, stepBall } from './physics.js';
-import { groundAxes } from './view.js';
+import { BREAK_SPEED, createBall, placeBall, stepBall } from 'madness-engine/physics';
+import { groundAxes } from 'madness-engine/views/arcade';
 
 /**
  * One level as it is played, without anything drawn or heard: the dungeon,

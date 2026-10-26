@@ -1,8 +1,8 @@
 import { CAST } from './cast/index.js';
-import { createModel } from './model.js';
-import { createBoulder } from './boulder.js';
-import { createEgg } from './egg.js';
-import { createSlime } from './slime.js';
+import { createModel } from 'madness-engine/models/model';
+import { createBoulder } from 'madness-engine/characters/boulder';
+import { createEgg } from 'madness-engine/characters/egg';
+import { createSlime } from 'madness-engine/characters/slime';
 
 /**
  * Every creature, by name, ready to stand up in a scene: the sculpted ones

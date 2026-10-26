@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import * as GFX from '../src/vendor/gfx/index.js';
+import * as GFX from 'madness-engine/gfx';
 import { CAST } from '../src/models/cast/index.js';
 import { BUILT, standUp } from '../src/models/looks.js';
-import { bake, createModel, createStatic } from '../src/models/model.js';
+import { bake, createModel, createStatic } from 'madness-engine/models/model';
 import { PROPS } from '../src/models/props/index.js';
-import { Sculpt, build } from '../src/models/sdf.js';
-import { Skeleton } from '../src/models/rig.js';
+import { Sculpt, build } from 'madness-engine/models/sdf';
+import { Skeleton } from 'madness-engine/models/rig';
 
 test('a sculpted ball meshes into a closed ball of the right size, its normals pointing out', () => {
   const s = new Sculpt().sphere([0, 0, 0], 0.2);
