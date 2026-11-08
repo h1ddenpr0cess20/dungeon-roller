@@ -4,7 +4,6 @@ import { createDelve, HARM, putBack, showing, STEP, stepDelve, toGround } from '
 import { createEffects } from './effects.js';
 import { LEVELS } from './levels.js';
 import { BOARD_DETAIL, MONSTERS } from './monsters.js';
-import { readyAll } from './models/library.js';
 import { createParty, grant, heal, hurt, rest, revive, rollBonus, seeded, wiped } from './party.js';
 import { turn } from 'madness-engine/physics';
 import { createDungeonMeshes, createExit, createTorches } from 'madness-engine/scenery/dungeon';
@@ -34,7 +33,7 @@ const TITLE_ZOOM = 0.38;
 const TITLE_TURN = 0.18;
 const FIGHT_ZOOM = 0.45;
 
-export function createGame({ stage, hud, input, audio, storage }) {
+export function createGame({ stage, hud, input, audio, storage, loading }) {
   const { GFX, scene, view } = stage;
   const effects = createEffects(GFX, scene);
   const model = dieModel(GFX);
@@ -91,7 +90,7 @@ export function createGame({ stage, hud, input, audio, storage }) {
     // Once everything in it has baked (they come in in the background), draw it all again so its shaders are ready too.
     const here = delve;
     baking = true;
-    readyAll([
+    loading.bake([
       ...l.mobs.map((m) => [m.kind, BOARD_DETAIL]),
       ...l.pickups.map((p) => [p.kind, 1]),
     ]).then(() => {
