@@ -2,12 +2,16 @@ import { createAudio } from './audio.js';
 import { createGame } from './game.js';
 import { createHud } from './hud.js';
 import { createInput } from 'madness-engine/input';
-import { preload } from './models/library.js';
+import { isBaked, preload, ready, SCULPTED, startupJobs } from './models/library.js';
+import { createLoading } from 'madness-engine/venue/loading';
 import { createStage } from './stage.js';
 import { createStorage } from './storage.js';
 
-// The monsters are sculpted in code: start baking them before anything else.
+// The monsters are sculpted in code: start baking them before anything else,
+// and hold the page on the loading screen until they are in.
+const loading = createLoading(document.body, 'Loading', { isBaked, ready, SCULPTED });
 preload();
+loading.bake(startupJobs());
 
 const view = document.getElementById('view');
 const audio = createAudio();
@@ -33,7 +37,7 @@ const input = createInput(view, {
 
 try {
   const stage = await createStage(view);
-  game = createGame({ stage, hud, input, audio, storage: createStorage() });
+  game = createGame({ stage, hud, input, audio, storage: createStorage(), loading });
   globalThis.dungeonRoller = game;
 
   let last = performance.now();
