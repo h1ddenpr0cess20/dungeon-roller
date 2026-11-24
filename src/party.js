@@ -16,10 +16,10 @@
  */
 
 export const HEROES = Object.freeze([
-  { id: 'knight', name: 'Knight', hp: 30, weight: 3, colour: '#c9d3e6', mark: 'K' },
-  { id: 'rogue', name: 'Rogue', hp: 22, weight: 2, colour: '#9fd48a', mark: 'R' },
-  { id: 'cleric', name: 'Cleric', hp: 24, weight: 2, colour: '#f2d27a', mark: 'C' },
-  { id: 'mage', name: 'Mage', hp: 18, weight: 1, colour: '#b9a2f0', mark: 'M' },
+  { id: 'knight', name: 'Knight', hp: 30, weight: 3, color: '#c9d3e6', mark: 'K' },
+  { id: 'rogue', name: 'Rogue', hp: 22, weight: 2, color: '#9fd48a', mark: 'R' },
+  { id: 'cleric', name: 'Cleric', hp: 24, weight: 2, color: '#f2d27a', mark: 'C' },
+  { id: 'mage', name: 'Mage', hp: 18, weight: 1, color: '#b9a2f0', mark: 'M' },
 ]);
 
 /** A seeded random source, 0 to 1 (mulberry32). */

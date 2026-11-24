@@ -41,7 +41,7 @@ export function createHud(root, { onStart }) {
 
   const rows = HEROES.map((h) => {
     const li = document.createElement('li');
-    li.innerHTML = `<b style="--hero:${h.colour}">${h.mark}</b><span class="name">${h.name}</span>`
+    li.innerHTML = `<b style="--hero:${h.color}">${h.mark}</b><span class="name">${h.name}</span>`
       + '<span class="bar"><i></i></span><span class="hp"></span><span class="hit"></span>';
     partyEl.appendChild(li);
     return { li, name: li.querySelector('.name'), bar: li.querySelector('i'), hp: li.querySelector('.hp'), hit: li.querySelector('.hit') };

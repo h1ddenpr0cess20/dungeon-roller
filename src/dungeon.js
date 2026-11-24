@@ -23,7 +23,7 @@ export const DEPTH = 6;
 /** Walls on the back sides of a room and on the front, above the floor. */
 export const WALL = Object.freeze({ back: 2.2, front: 0.7 });
 
-/** Colour index for wall tops: the last colour in a palette's `tiles`. */
+/** Color index for wall tops: the last color in a palette's `tiles`. */
 export const CAP = -1;
 
 /** Corner order: (x, z), (x + 1, z), (x, z + 1), (x + 1, z + 1). */
@@ -218,7 +218,7 @@ export class Dungeon {
   /**
    * A monster: `kind` is one of `MONSTERS` (monsters.js). Walkers stay
    * within `range` of where they start, and go round `path` (a loop of tile
-   * centres) when nothing is near; crawlers and flyers only go round it.
+   * centers) when nothing is near; crawlers and flyers only go round it.
    * `facing` is which way it looks to begin with, in radians from +z toward +x.
    */
   mob(kind, x, z, { range = 6, path = null, facing = 0 } = {}) {
@@ -348,7 +348,7 @@ function banked(u, bank) {
   return bank * Math.min(k * k, 1.8);
 }
 
-/** sRGB hex to linear RGB — vertex colours are linear. */
+/** sRGB hex to linear RGB — vertex colors are linear. */
 export function linearRGB(hex) {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
@@ -390,14 +390,14 @@ export function bakeLight(dungeon) {
       if (c?.kind === 'exit') exits.push([x + 0.5, c.h[0] + 0.5, z + 0.5]);
     }
   }
-  const glow = (sources, x, y, z, reach, colour, out) => {
+  const glow = (sources, x, y, z, reach, color, out) => {
     for (const [sx, sy, sz] of sources) {
       const dx = x - sx, dz = z - sz;
       if (Math.abs(dx) > reach || Math.abs(dz) > reach) continue;
       const d = Math.hypot(dx, (y - sy) * 0.8, dz);
       if (d >= reach) continue;
       const k = (1 - d / reach) ** 2;
-      out[0] += colour[0] * k; out[1] += colour[1] * k; out[2] += colour[2] * k;
+      out[0] += color[0] * k; out[1] += color[1] * k; out[2] += color[2] * k;
     }
   };
   return (x, y, z) => {
@@ -421,13 +421,13 @@ export function buildDungeon(dungeon) {
   const lava = { position: [], normal: [], color: [], uv: [] };
   const walls = { position: [], normal: [], color: [], uv: [] };
   const palette = dungeon.palette;
-  const tileColours = palette.tiles.map(linearRGB);
-  const exitColour = linearRGB(palette.exit ?? '#2a3346');
-  const trapColour = linearRGB(palette.trap ?? '#5a3a2c');
-  const wallColours = (palette.walls ?? palette.tiles).map(linearRGB);
+  const tileColors = palette.tiles.map(linearRGB);
+  const exitColor = linearRGB(palette.exit ?? '#2a3346');
+  const trapColor = linearRGB(palette.trap ?? '#5a3a2c');
+  const wallColors = (palette.walls ?? palette.tiles).map(linearRGB);
   const light = bakeLight(dungeon);
 
-  const colourAt = (i) => tileColours[((i % tileColours.length) + tileColours.length) % tileColours.length];
+  const colorAt = (i) => tileColors[((i % tileColors.length) + tileColors.length) % tileColors.length];
 
   const normalOf = (a, b, c) => {
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -442,10 +442,10 @@ export function buildDungeon(dungeon) {
     return [base[0] * l[0], base[1] * l[1], base[2] * l[2]];
   };
 
-  const face = (out, a, b, c, normal, colours, uvs) => {
+  const face = (out, a, b, c, normal, colors, uvs) => {
     out.position.push(...a, ...b, ...c);
     for (let k = 0; k < 3; k++) out.normal.push(...normal);
-    out.color.push(...colours[0], ...colours[1], ...colours[2]);
+    out.color.push(...colors[0], ...colors[1], ...colors[2]);
     out.uv.push(...uvs[0], ...uvs[1], ...uvs[2]);
   };
 
@@ -492,10 +492,10 @@ export function buildDungeon(dungeon) {
       const [h00, h10, h01, h11] = c.h;
       const checker = (x + z) % 2;
       let base;
-      if (c.kind === 'exit') base = exitColour;
+      if (c.kind === 'exit') base = exitColor;
       else if (c.kind === 'lava') base = [1, 1, 1];
-      else if (c.trap) base = trapColour;
-      else base = c.kind === 'wall' ? colourAt(CAP) : colourAt(c.color);
+      else if (c.trap) base = trapColor;
+      else base = c.kind === 'wall' ? colorAt(CAP) : colorAt(c.color);
       const tint = c.kind === 'lava' ? 1 : (checker ? 0.94 : 1) * (0.84 + 0.22 * grain(x, z));
       const col = base.map((v) => v * tint);
       const A = [x, h00, z], B = [x + 1, h10, z], C = [x, h01, z + 1], D = [x + 1, h11, z + 1];
@@ -514,10 +514,10 @@ export function buildDungeon(dungeon) {
       world.addTriangle(...B, ...C, ...D);
 
       // The sides: down to the next tile, or into the dark.
-      const wallBase = wallColours[((c.color % wallColours.length) + wallColours.length) % wallColours.length];
+      const wallBase = wallColors[((c.color % wallColors.length) + wallColors.length) % wallColors.length];
       const low = Math.min(...c.h) - DEPTH;
       const edges = [
-        // [ends, this tile's heights there, neighbour, its heights there, outward]
+        // [ends, this tile's heights there, neighbor, its heights there, outward]
         [[x, z], [x + 1, z], h00, h10, dungeon.cell(x, z - 1), (n) => [n.h[H01], n.h[H11]], [0, 0, -1]],
         [[x, z + 1], [x + 1, z + 1], h01, h11, dungeon.cell(x, z + 1), (n) => [n.h[H00], n.h[H10]], [0, 0, 1]],
         [[x, z], [x, z + 1], h00, h01, dungeon.cell(x - 1, z), (n) => [n.h[H10], n.h[H11]], [-1, 0, 0]],

@@ -19,7 +19,7 @@ import { createParty, grant, heal, hurt, revive, rollBonus, seeded, wiped } from
 /** The furthest it will drop off a ledge: well short of a drop that hurts. */
 export const DROP = FALL_LIMIT * 0.6;
 
-const NEIGHBOURS = [
+const NEIGHBORS = [
   [0, -1, (c) => [c.h[0], c.h[1]], (n) => [n.h[2], n.h[3]]],
   [0, 1, (c) => [c.h[2], c.h[3]], (n) => [n.h[0], n.h[1]]],
   [-1, 0, (c) => [c.h[0], c.h[2]], (n) => [n.h[1], n.h[3]]],
@@ -29,7 +29,7 @@ const NEIGHBOURS = [
 const walkable = (c) => c && c.kind !== 'wall' && c.kind !== 'lava';
 
 /**
- * The ways from tile to tile: a step to a neighbour that isn't higher at the
+ * The ways from tile to tile: a step to a neighbor that isn't higher at the
  * shared edge and isn't too far down, and a ride on each lift, from the
  * tiles beside it at one end of its run to those beside it at the other.
  * `rides` are the lift rides out of each tile: { to, lift, from, end }.
@@ -43,7 +43,7 @@ export function graph(level) {
       const c = level.cell(x, z);
       if (!walkable(c)) continue;
       const out = [];
-      for (const [dx, dz, mine, theirs] of NEIGHBOURS) {
+      for (const [dx, dz, mine, theirs] of NEIGHBORS) {
         const n = level.cell(x + dx, z + dz);
         if (!walkable(n)) continue;
         const [a0, a1] = mine(c), [b0, b1] = theirs(n);
@@ -156,21 +156,21 @@ const liftWaiting = (l, end) => (delve) => {
   return end === 0 ? s === 0 && u < l.pause * 0.45 : s === 1 && u > 0.5 && u < 0.5 + l.pause * 0.45;
 };
 
-/** Turns a plan into waypoints: tile centres at a pace to suit, with waits and rides where they're needed. */
+/** Turns a plan into waypoints: tile centers at a pace to suit, with waits and rides where they're needed. */
 function waypoints(delve, moves, from) {
   const level = delve.level;
   const out = [];
   let prev = from;
-  const centre = (x, z) => [x + 0.5, z + 0.5];
+  const center = (x, z) => [x + 0.5, z + 0.5];
   const zoneOf = (list, x, z) => list.find((s) => x >= s.x && z >= s.z && x < s.x + s.w && z < s.z + s.d);
   for (const m of moves) {
     if (m.lift !== undefined) {
       const l = delve.actors.lifts[m.lift];
       const last = out[out.length - 1];
-      const wait = { at: centre(...prev), speed: 2.5, stop: true, until: liftWaiting(l, m.from) };
+      const wait = { at: center(...prev), speed: 2.5, stop: true, until: liftWaiting(l, m.from) };
       if (last) Object.assign(last, wait); else out.push(wait);
       out.push({ on: m.lift, at: [l.w / 2, l.d / 2], speed: 2.2, stop: true, until: liftWaiting(l, 1 - m.from), radius: 0.35 });
-      out.push({ at: centre(m.x, m.z), speed: 2.2, radius: 0.4 });
+      out.push({ at: center(m.x, m.z), speed: 2.2, radius: 0.4 });
       prev = [m.x, m.z];
       continue;
     }
@@ -180,19 +180,19 @@ function waypoints(delve, moves, from) {
     // Wait on the tile before a crusher or spikes for the moment to go.
     if (cell.crush && !before.crush) {
       const h = zoneOf(delve.actors.crushers, m.x, m.z);
-      const wait = { at: centre(...prev), speed: 2.5, stop: true, until: crusherUp(h) };
+      const wait = { at: center(...prev), speed: 2.5, stop: true, until: crusherUp(h) };
       if (last) Object.assign(last, wait); else out.push(wait);
     }
     if (cell.trap && !before.trap) {
       const s = zoneOf(delve.actors.spikes, m.x, m.z);
-      const wait = { at: centre(...prev), speed: 2.5, stop: true, until: spikesIn(s) };
+      const wait = { at: center(...prev), speed: 2.5, stop: true, until: spikesIn(s) };
       if (last) Object.assign(last, wait); else out.push(wait);
     }
     let speed = 3.6;
     if (edgy(level, m.x, m.z)) speed = 2.6;
     if (!level.cell(m.x + 1, m.z) && !level.cell(m.x - 1, m.z) || !level.cell(m.x, m.z + 1) && !level.cell(m.x, m.z - 1)) speed = 2.2;
     if (cell.crush || cell.trap) speed = 4.5;
-    const point = { at: centre(m.x, m.z), speed };
+    const point = { at: center(m.x, m.z), speed };
     if (cell.door) {
       const g = zoneOf(delve.actors.doors, m.x, m.z);
       if (g.box.solid) Object.assign(point, { stop: true, until: () => !g.box.solid || g.box.min[1] > g.base + 1.1, speed: 2 });
