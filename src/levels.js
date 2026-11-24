@@ -11,7 +11,7 @@ import { Dungeon } from './dungeon.js';
  * treasure are then put into the pieces by where they are in them.
  *
  * A palette's `tiles` are the floor, the stairs and ramps, the bridges, and
- * last the tops of the walls; `walls` are the colours down their sides.
+ * last the tops of the walls; `walls` are the colors down their sides.
  */
 
 /** A tile and a heading, as a digger's cursor wants them. */
@@ -739,14 +739,14 @@ function ironHalls() {
   c.potion(...guard.tile(5, -2));
   d.turn('+z');
   d.hall(4);
-  // The armoury.
-  const armoury = d.room(11, 11);
-  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...armoury.tile(a, b), 0.8);
-  c.mob('orc', ...armoury.tile(4, -1), { range: 6 }).mob('orc', ...armoury.tile(8, 2), { range: 6 });
-  c.mob('goblin', ...armoury.tile(2, 3), { range: 6 }).mob('goblin', ...armoury.tile(6, -4), { range: 6 });
-  c.chest(...armoury.tile(9, -4), 80);
+  // The armory.
+  const armory = d.room(11, 11);
+  for (const [a, b] of [[3, -3], [3, 3], [7, -3], [7, 3]]) c.pillar(...armory.tile(a, b), 0.8);
+  c.mob('orc', ...armory.tile(4, -1), { range: 6 }).mob('orc', ...armory.tile(8, 2), { range: 6 });
+  c.mob('goblin', ...armory.tile(2, 3), { range: 6 }).mob('goblin', ...armory.tile(6, -4), { range: 6 });
+  c.chest(...armory.tile(9, -4), 80);
   // The first key, across a gap on a platform.
-  const side1 = d.fork().jump(pick(armoury.tile(5, -6), '+x'));
+  const side1 = d.fork().jump(pick(armory.tile(5, -6), '+x'));
   side1.hall(3);
   side1.ferry(9, { period: 6 });
   const store = side1.room(5, 7);

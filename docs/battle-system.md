@@ -101,7 +101,7 @@ what each one does:
      `heightOf(...)`, `canvasOf(...)` in `drawUnits`, and the two
      `portrait(...)` calls (party panel and victory panel). Portraits can be
      small offscreen renders of each hero model, or just the hero's accent
-     colour and initial.
+     color and initial.
 2. **Hero models.** The Hero, Warrior, Mage and Healer still have to be
    sculpted. Only the rat is started (`src/models/cast/rat.js`).
 3. **Touch.** The screen has pointer buttons for every command, but it has

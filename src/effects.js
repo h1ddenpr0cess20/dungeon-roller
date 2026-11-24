@@ -20,9 +20,9 @@ export function createEffects(GFX, scene) {
   const gold = new GFX.MeshStandardMaterial({ name: 'coin', color: new GFX.Color('#ffcf4a'), metalness: 1, roughness: 0.25, emissive: new GFX.Color('#6a4a00'), emissiveIntensity: 0.6 });
   const mote = new GFX.SphereGeometry(0.035, 6, 4);
   const glows = new Map();
-  const glow = (colour) => {
-    if (!glows.has(colour)) glows.set(colour, new GFX.MeshBasicMaterial({ name: 'glow', color: new GFX.Color(colour), toneMapped: false }));
-    return glows.get(colour);
+  const glow = (color) => {
+    if (!glows.has(color)) glows.set(color, new GFX.MeshBasicMaterial({ name: 'glow', color: new GFX.Color(color), toneMapped: false }));
+    return glows.get(color);
   };
   const grit = new GFX.BoxGeometry(0.05, 0.05, 0.05);
   const dirt = new GFX.MeshStandardMaterial({ name: 'grit', color: new GFX.Color('#8a8276'), roughness: 1 });
@@ -69,9 +69,9 @@ export function createEffects(GFX, scene) {
       }
     },
 
-    sparkle(x, y, z, colour = '#ff5a7a') {
+    sparkle(x, y, z, color = '#ff5a7a') {
       for (let i = 0; i < 18; i++) {
-        const m = new GFX.Mesh(mote, glow(colour));
+        const m = new GFX.Mesh(mote, glow(color));
         const [ox, oy, oz] = outward(1.2, 3);
         spawn(m, { x, y: y + 0.3, z, vx: ox, vy: oy, vz: oz, life: 0.7 + Math.random() * 0.5, floaty: -0.1, drag: 1.5, bounce: 0 });
       }

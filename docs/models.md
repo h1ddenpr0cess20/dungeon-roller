@@ -11,7 +11,7 @@ and a level doesn't begin until everything in it has baked.
 | File | What it does |
 | --- | --- |
 | `src/models/sdf.js` | The sculpting kit (`Sculpt`): signed distance shapes, smooth union, carving, parts, paint, fur and scale patterns. `build` turns a sculpt into a mesh. |
-| `src/models/skins.js` | Colour helpers for shapes: `coat`, `pelt`, `ramp`, `bands`, `grainy`, `grime`. |
+| `src/models/skins.js` | Color helpers for shapes: `coat`, `pelt`, `ramp`, `bands`, `grainy`, `grime`. |
 | `src/models/rig.js` | Bones (`Skeleton`) and CPU skinning (`skin`). |
 | `src/models/model.js` | `bake(def, { detail })` turns a definition into a mesh. `createModel(GFX, def, { detail })` makes a posable copy for a scene; `createStatic(GFX, def)` a still one (a prop) that shares its geometry with every other copy. |
 | `src/models/library.js` | Bakes everything in Web Workers as the page loads (`preload`, `ready`, `readyAll`, `isBaked`). |
@@ -36,15 +36,15 @@ and a level doesn't begin until everything in it has baked.
    - It samples a coarse grid first and refines only near the surface.
    - Every vertex is then pulled onto the true surface (two Newton
      steps).
-   - Each vertex gets a normal from the field's gradient, a colour (a blend
-     of the nearest shapes' colours plus any paint), and ambient occlusion
-     worked out from the field and baked into the colour.
+   - Each vertex gets a normal from the field's gradient, a color (a blend
+     of the nearest shapes' colors plus any paint), and ambient occlusion
+     worked out from the field and baked into the color.
    - Each vertex also gets up to four bone weights, from how close each
      shape (and so its bone) is.
 3. **Parts.** `s.part('eyes', () => …)` puts shapes in a part of their own,
    meshed separately and not melted into the rest. Use parts for anything
    that should stay crisp against what it sits on: eyes, teeth, claws,
-   armour, weapons.
+   armor, weapons.
    - A part can have a finer grid of its own. In the definition, set
      `cells: { eyes: 0.0024 }`.
    - **Anything thinner than about two grid steps must go in a finer
@@ -54,13 +54,13 @@ and a level doesn't begin until everything in it has baked.
    settings:
    - roughness, metalness, sheen (fur), clearcoat (wet or glossy),
      emissive (glow), transmission (jelly)
-   - colour comes from the vertex colours, not the material
+   - color comes from the vertex colors, not the material
 
    Each triangle takes the material most of its corners have. A boundary
    between two materials inside one part follows the triangles and can
    look jagged. Where that boundary shows (an iris on an eyeball, say),
    use separate parts instead.
-5. **Colour.**
+5. **Color.**
    - A shape's `color` is either a hex string or `(p, n) => [r, g, b]`
      (linear RGB).
    - `s.paint(inside, color, soft)` paints over everything inside a
@@ -69,14 +69,14 @@ and a level doesn't begin until everything in it has baked.
    - The `skins.js` helpers give a believable surface quickly:
      - `pelt` is fur: darker on top, lighter underneath, blotchy noise, and
        strands
-     - `ramp` grades a colour along an axis
+     - `ramp` grades a color along an axis
      - `bands` makes rings, like a tail's
      - `grainy` and `grime` are for stone, bone and metal
 6. **Fur and scales.** `locks: [size, height, axis, stretch]` on a shape
    raises its surface in overlapping locks, a Voronoi pattern stretched
    along `axis` (see `shingles` in sdf.js). The same pattern makes scales
    with a small stretch and fur with a long one. Use the same `shingles`
-   call in the colour function to lighten the lock tips and darken the
+   call in the color function to lighten the lock tips and darken the
    creases.
    - The rat's fur: `[0.022, 0.0045, 2, 3.2]`
    - Scales: about `[0.04, 0.008, 2, 1.3]`

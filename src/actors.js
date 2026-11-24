@@ -214,7 +214,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
     }
     mesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     group.add(mesh);
-    return { ...g, base, box, mesh, opening: -1, centre: [cx, base, cz] };
+    return { ...g, base, box, mesh, opening: -1, center: [cx, base, cz] };
   });
 
   world.boxes = [...crushers.map((h) => h.box), ...lifts.map((l) => l.box), ...doors.map((g) => g.box)];
@@ -345,9 +345,9 @@ export function createActors(GFX, dungeon, world, { killY }) {
           if (kind.move === 'fly') m.y = m.flight;
           else m.y = dungeon.heightAt(x, z) ?? m.y;
           if (die && !touched && open) {
-            const centre = kind.move === 'fly' ? m.y : m.y + 0.2;
+            const center = kind.move === 'fly' ? m.y : m.y + 0.2;
             const flat = Math.hypot(die.x - x, die.z - z);
-            if (flat < die.r + kind.radius * (kind.move === 'fly' ? 1 : 0.8) && Math.abs(die.y - centre) < 0.65) touched = m;
+            if (flat < die.r + kind.radius * (kind.move === 'fly' ? 1 : 0.8) && Math.abs(die.y - center) < 0.65) touched = m;
           }
         }
       }
@@ -419,7 +419,7 @@ export function createActors(GFX, dungeon, world, { killY }) {
         l.mesh.position.set((l.box.min[0] + l.box.max[0]) / 2, (l.box.min[1] + l.box.max[1]) / 2, (l.box.min[2] + l.box.max[2]) / 2);
       }
       for (const g of doors) {
-        g.mesh.position.set(g.centre[0], (g.box.min[1] + g.box.max[1]) / 2, g.centre[2]);
+        g.mesh.position.set(g.center[0], (g.box.min[1] + g.box.max[1]) / 2, g.center[2]);
       }
       for (const [i, p] of pickups.entries()) {
         p.mesh.visible = !p.taken;

@@ -109,7 +109,7 @@ test('lava is drawn on its own, and collided with like any floor', () => {
   assert.ok(world.triangles.length / 9 >= 4);
 });
 
-test('colours are linear', () => {
+test('colors are linear', () => {
   assert.deepEqual(linearRGB('#ffffff'), [1, 1, 1]);
   assert.deepEqual(linearRGB('#000000'), [0, 0, 0]);
 });

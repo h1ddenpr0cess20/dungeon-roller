@@ -105,7 +105,7 @@ export function createBattleScreen(root) {
         const h = party ? { ...base, hp: party.heroes[i].max } : base;
         const li = document.createElement('li');
         const lost = before[i] - after[i];
-        li.innerHTML = `<b style="color:${h.colour}">${h.name}${party ? ` <small>L${party.heroes[i].level}</small>` : ''}</b>`
+        li.innerHTML = `<b style="color:${h.color}">${h.name}${party ? ` <small>L${party.heroes[i].level}</small>` : ''}</b>`
           + `<span class="bar"><i style="width:${(100 * Math.max(0, after[i])) / h.hp}%"></i></span>`
           + `<span class="hp">${Math.max(0, after[i])}/${h.hp}</span>`
           + `<span class="lost">${lost > 0 ? `−${lost}` : ''}${after[i] <= 0 && before[i] > 0 ? ' DOWN' : ''}${levels[i] ? ' LEVEL UP!' : ''}</span>`;
